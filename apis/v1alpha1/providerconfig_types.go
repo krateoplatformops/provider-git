@@ -6,11 +6,23 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
+// ProviderCredentials required to authenticate.
+type ProviderCredentials struct {
+	// Source of the provider credentials.
+	// +kubebuilder:validation:Enum=None;Secret;Environment
+	Source xpv1.CredentialsSource `json:"source"`
+
+	xpv1.CommonCredentialSelectors `json:",inline"`
+}
+
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
 	// Debug is true dumps your client requests and responses.
 	// +optional
 	Debug *bool `json:"debug,omitempty"`
+
+	// Credentials required to authenticate to this provider.
+	Credentials ProviderCredentials `json:"credentials"`
 }
 
 // A ProviderConfigStatus reflects the observed state of a ProviderConfig.

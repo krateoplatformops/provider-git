@@ -9,7 +9,13 @@ import (
 	"github.com/krateoplatformops/provider-git/pkg/clients/github"
 )
 
-func CreateEventually(httpClient *http.Client, token string, opts git.RepoOpts) error {
+type RepoCreateConfig struct {
+	HttpClient *http.Client
+	Token      string
+	Debug      bool
+}
+
+func CreateEventually(cfg RepoCreateConfig, opts *git.RepoOpts) error {
 	host := opts.Provider
 	if len(host) == 0 {
 		var err error
@@ -22,12 +28,12 @@ func CreateEventually(httpClient *http.Client, token string, opts git.RepoOpts) 
 	var fn createFunc
 	switch h := host; {
 	case strings.Contains(h, "github"):
-		fn = createOnGitHub(httpClient, token)
+		fn = createOnGitHub(cfg.HttpClient, cfg.Token)
 	default:
 		return fmt.Errorf("provider: %s not implemented yet", host)
 	}
 
-	return fn(&opts)
+	return fn(opts)
 }
 
 type createFunc func(o *git.RepoOpts) error

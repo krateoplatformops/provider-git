@@ -9,8 +9,15 @@ import (
 	"github.com/go-git/go-billy/v5"
 )
 
-func RepoCopy(from, to *Repo, src, dst string) (err error) {
-	return copyDir(from.fs, to.fs, src, dst)
+type RepoCopyConfig struct {
+	FromRepo *Repo
+	ToRepo   *Repo
+	FromPath string
+	ToPath   string
+}
+
+func RepoCopy(cfg RepoCopyConfig) (err error) {
+	return copyDir(cfg.FromRepo.fs, cfg.ToRepo.fs, cfg.FromPath, cfg.ToPath)
 }
 
 func copyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
