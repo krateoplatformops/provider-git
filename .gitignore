@@ -50,3 +50,5 @@ cover.out
 /.vendor-new
 .tool-versions
 **/*.xpkg
+
+main.go

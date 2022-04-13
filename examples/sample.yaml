@@ -1,0 +1,30 @@
+apiVersion: git.krateo.io/v1alpha1
+kind: Repo
+metadata:
+  name: sample-project-repo
+spec:
+  forProvider:
+    fromRepo:
+      url: # url completo del repo (required)
+      apiUrl: # url completo eventuale api (optional)
+      folder: skeleton # nome della folder da cui copiare
+    toRepo:
+      url: # url completo del repo (required)
+      apiUrl: # url completo eventuale api (optional)
+  providerConfigRef:
+    name: provider-git-config
+
+---
+
+apiVersion: git.krateo.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: provider-git-config
+spec:
+  debug: true
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: krateo-system
+      name: git-admin-secret
+      key: token

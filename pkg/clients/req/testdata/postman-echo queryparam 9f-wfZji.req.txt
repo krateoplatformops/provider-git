@@ -1,3 +1,0 @@
-GET /get?a=1&b=3&c=4 HTTP/1.1
-Host: postman-echo.com
-

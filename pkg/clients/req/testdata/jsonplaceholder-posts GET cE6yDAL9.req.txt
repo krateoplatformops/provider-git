@@ -1,3 +1,0 @@
-GET /posts/1 HTTP/1.1
-Host: jsonplaceholder.typicode.com
-

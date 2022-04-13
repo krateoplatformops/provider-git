@@ -51,7 +51,7 @@ func (t *Tracer) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func main() {
 
-	token := "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"
+	token := "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"
 	fromRepoUrl := "https://github.com/projectkerberus/aws-stack-template"
 	toRepoUrl := "https://github.com/lucasepe/deletami"
 
