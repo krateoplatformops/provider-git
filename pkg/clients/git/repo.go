@@ -83,6 +83,10 @@ func Clone(repoUrl string, creds RepoCreds) (*Repo, error) {
 	return res, nil
 }
 
+func (s *Repo) FS() billy.Filesystem {
+	return s.fs
+}
+
 func (s *Repo) Branch(name string) error {
 	branch := fmt.Sprintf("refs/heads/%s", name)
 	ref := plumbing.ReferenceName(branch)

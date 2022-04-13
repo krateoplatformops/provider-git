@@ -1,4 +1,4 @@
-package git
+package repo
 
 import (
 	"fmt"
@@ -7,17 +7,19 @@ import (
 	"path/filepath"
 
 	"github.com/go-git/go-billy/v5"
+	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 )
 
-type RepoCopyConfig struct {
-	FromRepo *Repo
-	ToRepo   *Repo
+type CopyOpts struct {
+	FromRepo *git.Repo
+	ToRepo   *git.Repo
 	FromPath string
 	ToPath   string
 }
 
-func RepoCopy(cfg RepoCopyConfig) (err error) {
-	return copyDir(cfg.FromRepo.fs, cfg.ToRepo.fs, cfg.FromPath, cfg.ToPath)
+// Copy files from one in memory filesystem to another in memory filesystem
+func Copy(cfg CopyOpts) (err error) {
+	return copyDir(cfg.FromRepo.FS(), cfg.ToRepo.FS(), cfg.FromPath, cfg.ToPath)
 }
 
 func copyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {

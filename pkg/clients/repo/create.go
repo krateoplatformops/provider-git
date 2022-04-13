@@ -9,13 +9,14 @@ import (
 	"github.com/krateoplatformops/provider-git/pkg/clients/github"
 )
 
-type RepoCreateConfig struct {
+type CreateOpts struct {
 	HttpClient *http.Client
 	Token      string
 	Debug      bool
 }
 
-func CreateEventually(cfg RepoCreateConfig, opts *git.RepoOpts) error {
+// Create creates the specified repository if does not exists.
+func Create(cfg CreateOpts, opts *git.RepoOpts) error {
 	host := opts.Provider
 	if len(host) == 0 {
 		var err error
