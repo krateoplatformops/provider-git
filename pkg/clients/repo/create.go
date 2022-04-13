@@ -15,7 +15,7 @@ type CreateOpts struct {
 	Debug      bool
 }
 
-// Create creates the specified repository if does not exists.
+// Create the specified repository if does not exists.
 func Create(cfg CreateOpts, opts *git.RepoOpts) error {
 	host := opts.Provider
 	if len(host) == 0 {
