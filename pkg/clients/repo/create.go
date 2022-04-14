@@ -9,14 +9,18 @@ import (
 	"github.com/krateoplatformops/provider-git/pkg/clients/github"
 )
 
-type CreateOpts struct {
+type ProviderOpts struct {
 	HttpClient *http.Client
 	Token      string
 	Debug      bool
 }
 
+type existsFunc func(o *git.RepoOpts) (bool, error)
+
+type createFunc func(o *git.RepoOpts) error
+
 // Create the specified repository if does not exists.
-func Create(cfg CreateOpts, opts *git.RepoOpts) error {
+func Create(cfg *ProviderOpts, opts *git.RepoOpts) error {
 	host := opts.Provider
 	if len(host) == 0 {
 		var err error
@@ -37,23 +41,13 @@ func Create(cfg CreateOpts, opts *git.RepoOpts) error {
 	return fn(opts)
 }
 
-type createFunc func(o *git.RepoOpts) error
-
-// createOnGitHub creates a repository if does not exists
-// using GitHub ReST API.
+// createOnGitHub creates a repository using GitHub ReST API.
 func createOnGitHub(httpClient *http.Client, token string) createFunc {
 	return func(opts *git.RepoOpts) error {
-		ghc := github.NewClient(token, github.HttpClient(httpClient), github.ApiUrl(opts.ApiUrl))
-
-		ok, err := ghc.Repos().Exists(opts)
-		if err != nil {
-			return err
-		}
-
-		if !ok {
-			return ghc.Repos().Create(opts)
-		}
-
-		return nil
+		return github.NewClient(token,
+			github.HttpClient(httpClient),
+			github.ApiUrl(opts.ApiUrl)).
+			Repos().
+			Create(opts)
 	}
 }

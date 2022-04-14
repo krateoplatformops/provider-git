@@ -19,20 +19,31 @@ type CopyOpts struct {
 
 // Copy files from one in memory filesystem to another in memory filesystem
 func Copy(cfg CopyOpts) (err error) {
-	return copyDir(cfg.FromRepo.FS(), cfg.ToRepo.FS(), cfg.FromPath, cfg.ToPath)
+	fromPath := cfg.FromPath
+	if len(fromPath) == 0 {
+		fromPath = "/"
+	}
+
+	toPath := cfg.ToPath
+	if len(toPath) == 0 {
+		toPath = "/"
+	}
+
+	return copyDir(cfg.FromRepo.FS(), cfg.ToRepo.FS(), fromPath, toPath)
 }
 
 func copyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 	in, err := fromFS.Open(src)
 	if err != nil {
-		return
+		return err
 	}
 	defer in.Close()
 
 	out, err := toFS.Create(dst)
 	if err != nil {
-		return
+		return err
 	}
+
 	defer func() {
 		if e := out.Close(); e != nil {
 			err = e
@@ -62,17 +73,19 @@ func copyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 	if err != nil && !os.IsNotExist(err) {
 		return
 	}
-	if err == nil {
-		//err = toFS.Remove(dst)
-		//if err != nil {
-		//	return
-		//}
-		err = toFS.MkdirAll(dst, si.Mode())
-		if err != nil {
-			return
-		}
-		//return fmt.Errorf("destination already exists")
-	}
+
+	/*
+		if err == nil {
+			//err = toFS.Remove(dst)
+			//if err != nil {
+			//	return
+			//}
+			err = toFS.MkdirAll(dst, si.Mode())
+			if err != nil {
+				return
+			}
+			//return fmt.Errorf("destination already exists")
+		}*/
 
 	err = toFS.MkdirAll(dst, si.Mode())
 	if err != nil {
@@ -103,6 +116,8 @@ func copyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 			if err != nil {
 				return
 			}
+
+			//fmt.Fprintf(os.Stderr, " copied: %s\n", entry)
 		}
 	}
 

@@ -33,7 +33,6 @@ func (e GithubError) Error() string {
 // Client is a tiny Github client
 type Client struct {
 	apiUrl string
-	token  string
 
 	httpClient *http.Client
 	repos      *RepoService
@@ -63,7 +62,7 @@ func NewClient(token string, opts ...ClientOpt) *Client {
 		o(res)
 	}
 
-	res.repos = newRepoService(res.httpClient, res.apiUrl, res.token)
+	res.repos = newRepoService(res.httpClient, res.apiUrl, token)
 
 	return res
 }

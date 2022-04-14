@@ -5,26 +5,10 @@ metadata:
 spec:
   forProvider:
     fromRepo:
-      url: # url completo del repo (required)
-      apiUrl: # url completo eventuale api (optional)
-      folder: skeleton # nome della folder da cui copiare
+      url: https://github.com/projectkerberus/aws-stack-template
+      path: skeleton
     toRepo:
-      url: # url completo del repo (required)
-      apiUrl: # url completo eventuale api (optional)
+      url: https://github.com/lucasepe/deletami
+      private: true
   providerConfigRef:
     name: provider-git-config
-
----
-
-apiVersion: git.krateo.io/v1alpha1
-kind: ProviderConfig
-metadata:
-  name: provider-git-config
-spec:
-  debug: true
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: krateo-system
-      name: git-admin-secret
-      key: token

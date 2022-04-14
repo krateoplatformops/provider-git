@@ -65,9 +65,9 @@ print.vars:
 
 .PHONY: dev
 ## dev: Run the controller in debug mode
-dev: generate
+dev: #generate
 	$(KUBECTL) apply -f package/crds/ -R
-	go run cmd/provider/main.go -d
+	go run cmd/main.go -d
 
 .PHONY: generate
 ## generate: Generate all CRDs
@@ -137,3 +137,8 @@ ghcr.secret:
 .PHONY: docker.login
 docker.login:
 	docker login ghcr.io --username $(ORG_NAME) --password $(GITHUB_TOKEN)
+
+token:
+	$(KUBECTL) create namespace krateo-system || true
+	$(KUBECTL) create secret generic git-token-secret \
+	    --from-file=token=./token.txt --namespace krateo-system
