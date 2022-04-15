@@ -11,8 +11,7 @@ import (
 
 type ProviderOpts struct {
 	HttpClient *http.Client
-	Token      string
-	Debug      bool
+	Verbose    bool
 }
 
 type existsFunc func(o *git.RepoOpts) (bool, error)
@@ -33,7 +32,7 @@ func Create(cfg *ProviderOpts, opts *git.RepoOpts) error {
 	var fn createFunc
 	switch h := host; {
 	case strings.Contains(h, "github"):
-		fn = createOnGitHub(cfg.HttpClient, cfg.Token)
+		fn = createOnGitHub(cfg.HttpClient, opts.ApiToken)
 	default:
 		return fmt.Errorf("provider: %s not implemented yet", host)
 	}

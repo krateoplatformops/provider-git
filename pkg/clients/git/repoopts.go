@@ -12,6 +12,9 @@ type RepoOpts struct {
 	// ApiUrl: the baseUrl for the REST API provider.
 	ApiUrl string
 
+	// ApiToken: the access token for invoking REST API provider.
+	ApiToken string
+
 	// Provider: the REST API provider.
 	// Actually only 'github' is supported.
 	Provider string

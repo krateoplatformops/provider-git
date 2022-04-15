@@ -103,15 +103,22 @@ install.crossplane: ## Install Crossplane into the local KinD cluster
 
 
 .PHONY: install.provider
-install.provider: ## Install this provider
-	@$(SED) 's/VERSION/$(VERSION)/g' ./examples/provider.yaml | @$(KUBECTL) apply -f -
+install.provider: cr.secret ## Install this provider
+	@$(SED) 's/VERSION/$(VERSION)/g' ./examples/provider.yaml | $(KUBECTL) apply -f -
 
 
-.PHONY: cr.token
-cr.token: ## Create the secret for container registry credentials
-	@$(KUBECTL) create secret docker-registry cr-token \
+.PHONY: cr.secret
+cr.secret: ## Create the secret for container registry credentials
+	$(KUBECTL) create secret docker-registry cr-token \
 	--namespace crossplane-system --docker-server=ghcr.io \
-	--docker-password=$(GITHUB_TOKEN) --docker-username=$(ORG_NAME)
+	--docker-password=$(PROVIDER_GIT) --docker-username=$(ORG_NAME) || true
+
+
+.PHONY: example.secrets
+example.secrets: ## Create the example secrets
+	@$(KUBECTL) create secret generic from-repo-token --from-literal=token=$(PROVIDER_GIT) || true
+	@$(KUBECTL) create secret generic to-repo-token --from-literal=token=$(PROVIDER_GIT) || true
+
 
 .PHONY: help
 help: ## print this help

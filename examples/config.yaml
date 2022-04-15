@@ -3,10 +3,4 @@ kind: ProviderConfig
 metadata:
   name: provider-git-config
 spec:
-  debug: true
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: krateo-system
-      name: git-token-secret
-      key: token
+  verbose: false

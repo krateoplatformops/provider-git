@@ -24,8 +24,6 @@ import (
 
 const (
 	errNotRepo = "managed resource is not a repo custom resource"
-	//errGetPC          = "cannot get ProviderConfig"
-	//errFmtKeyNotFound = "key %s is not found in referenced Kubernetes secret"
 )
 
 // Setup adds a controller that reconciles Token managed resources.
@@ -89,9 +87,12 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	toRepo := newRepoOpts(&spec.ToRepo)
+	toRepo, err := newRepoOpts(ctx, e.kube, &spec.ToRepo)
+	if err != nil {
+		return managed.ExternalObservation{}, err
+	}
 
-	ok, err := repo.Exists(e.cfg, toRepo)
+	ok, err = repo.Exists(e.cfg, toRepo)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -124,22 +125,29 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	fromRepoOpts := newRepoOpts(&spec.FromRepo)
-	toRepoOpts := newRepoOpts(&spec.ToRepo)
+	fromRepoOpts, err := newRepoOpts(ctx, e.kube, &spec.FromRepo)
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
 
-	err := repo.Create(e.cfg, toRepoOpts)
+	toRepoOpts, err := newRepoOpts(ctx, e.kube, &spec.ToRepo)
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
+
+	err = repo.Create(e.cfg, toRepoOpts)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo created", "url", toRepoOpts.Url)
 
-	toRepo, err := git.Clone(toRepoOpts.Url, git.RepoCreds{Password: e.cfg.Token})
+	toRepo, err := git.Clone(toRepoOpts.Url, git.RepoCreds{Password: toRepoOpts.ApiToken})
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", toRepoOpts.Url)
 
-	fromRepo, err := git.Clone(fromRepoOpts.Url, git.RepoCreds{Password: e.cfg.Token})
+	fromRepo, err := git.Clone(fromRepoOpts.Url, git.RepoCreds{Password: fromRepoOpts.ApiToken})
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}

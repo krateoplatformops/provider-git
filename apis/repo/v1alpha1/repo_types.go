@@ -5,6 +5,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// RepoCredentials required to authenticate.
+type RepoCredentials struct {
+	// Source of the ReST API Token.
+	// +kubebuilder:validation:Enum=None;Secret;Environment
+	Source xpv1.CredentialsSource `json:"source"`
+
+	xpv1.CommonCredentialSelectors `json:",inline"`
+}
+
 type RepoOpts struct {
 	// Url: the repository URL.
 	// +immutable
@@ -14,6 +23,9 @@ type RepoOpts struct {
 	// +optional
 	// +immutable
 	ApiUrl *string `json:"apiUrl,omitempty"`
+
+	// ApiCredentials required to authenticate ReST API git server.
+	ApiCredentials RepoCredentials `json:"apiCredentials"`
 
 	// Provider: the REST API provider.
 	// Actually only 'github' is supported.

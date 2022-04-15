@@ -23,7 +23,7 @@ func Exists(cfg *ProviderOpts, opts *git.RepoOpts) (bool, error) {
 	var fn existsFunc
 	switch h := host; {
 	case strings.Contains(h, "github"):
-		fn = existsOnGitHub(cfg.HttpClient, cfg.Token)
+		fn = existsOnGitHub(cfg.HttpClient, opts.ApiToken)
 	default:
 		return false, fmt.Errorf("provider: %s not implemented yet", host)
 	}
