@@ -94,6 +94,10 @@ image.build: ## build the controller Docker image
 	@$(DOCKER) rmi -f $$(docker images -f "dangling=true" -q)
 
 
+.PHONY: image.push
+image.push: ## Push the Docker image to the Github Registry
+	@$(DOCKER) push "$(DOCKER_REGISTRY)/$(PROJECT_NAME):$(VERSION)"
+
 .PHONY: install.crossplane
 install.crossplane: ## Install Crossplane into the local KinD cluster
 	$(KUBECTL) create namespace crossplane-system || true
