@@ -10,7 +10,8 @@ spec:
       apiCredentials:
         source: Secret
         secretRef:
-          name: from-repo-secret
+          namespace: default
+          name: from-repo-token
           key: token
     toRepo:
       url: https://github.com/lucasepe/deletami
@@ -18,7 +19,8 @@ spec:
       apiCredentials:
         source: Secret
         secretRef:
-          name: to-repo-secret
+          namespace: default
+          name: to-repo-token
           key: token
   providerConfigRef:
     name: provider-git-config
