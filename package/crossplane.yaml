@@ -1,0 +1,14 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  namespace: crossplane-system
+  name: crossplane-provider-argocd-token
+  annotations:
+    # A one sentence description of the package.
+    meta.crossplane.io/description: |
+      The Krateo PlatformOps Git provider enables copy from two git repositories.
+    # A 'human-friendly' name for this package.
+    friendly-name.meta.crossplane.io: "Krateo PlatformOps Git Provider"
+spec:
+  controller:
+    image: ghcr.io/krateoplatformops/provider-git:VERSION
