@@ -34,23 +34,12 @@ KIND=$(shell which kind)
 LINT=$(shell which golangci-lint)
 KUBECTL=$(shell which kubectl)
 DOCKER=$(shell which docker)
-
+SED=$(shell which sed)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help
-## help: Print this help
-help: Makefile
-	@echo
-	@echo " Choose a command run in "$(PROJECT_NAME)":"
-	@echo
-	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
-	@echo
-
-
 .PHONY: print.vars
-## print.vars: Print all the build variables
-print.vars:
+print.vars: ## print all the build variables
 	@echo VENDOR=$(VENDOR)
 	@echo ORG_NAME=$(ORG_NAME)
 	@echo PROJECT_NAME=$(PROJECT_NAME)
@@ -64,41 +53,36 @@ print.vars:
 
 
 .PHONY: dev
-## dev: Run the controller in debug mode
-dev: #generate
+dev: generate ## run the controller in debug mode
 	$(KUBECTL) apply -f package/crds/ -R
 	go run cmd/main.go -d
 
 .PHONY: generate
-## generate: Generate all CRDs
-generate: tidy
+generate: tidy ## generate all CRDs
 	go generate ./...
 
 .PHONY: tidy
-tidy:
+tidy: ## go mod tidy
 	go mod tidy
 
 .PHONY: test
-test:
+test: ## go test
 	go test -v ./...
 
 .PHONY: lint
-lint:
+lint: ## go lint
 	$(LINT) run
 
 .PHONY: kind.up
-## kind.up: Starts a KinD cluster for local development
-kind.up:
+kind.up: ## starts a KinD cluster for local development
 	@$(KIND) get kubeconfig --name $(KIND_CLUSTER_NAME) >/dev/null 2>&1 || $(KIND) create cluster --name=$(KIND_CLUSTER_NAME)
 
 .PHONY: kind.down
-## kind.down: Shuts down the KinD cluster
-kind.down:
+kind.down: ## shuts down the KinD cluster
 	@$(KIND) delete cluster --name=$(KIND_CLUSTER_NAME)
 
 .PHONY: image.build
-## image.build: Build the Docker image
-image.build:
+image.build: ## build the controller Docker image
 	@$(DOCKER) build -t "$(DOCKER_REGISTRY)/$(PROJECT_NAME):$(VERSION)" \
 	--build-arg METRICS_PORT=9090 \
 	--build-arg VERSION="$(VERSION)" \
@@ -109,34 +93,26 @@ image.build:
 	--build-arg VENDOR="$(VENDOR)" .
 	@$(DOCKER) rmi -f $$(docker images -f "dangling=true" -q)
 
-.PHONY: image.push
-## image.push: Push the Docker image to the Github Registry
-image.push:
-	@$(DOCKER) push "$(DOCKER_REGISTRY)/$(PROJECT_NAME):$(VERSION)"
 
-.PHONY: build.provider
-build.provider:
-	cd ./package && \
-	rm -f *.xpkg && \
-	pwd && \
-	$(KUBECTL) crossplane build provider
+.PHONY: install.crossplane
+install.crossplane: ## Install Crossplane into the local KinD cluster
+	$(KUBECTL) create namespace crossplane-system || true
+	helm repo add crossplane-stable https://charts.crossplane.io/stable
+	helm repo update
+	helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
 
-.PHONY: push.provider
-push.provider:
-	cd ./package && \
-	$(KUBECTL) crossplane push provider "$(DOCKER_REGISTRY)/crossplane-$(PROJECT_NAME):$(VERSION)"
 
-.PHONY: ghcr.secret
-ghcr.secret:
-	$(KUBECTL) create secret docker-registry cr-token \
+.PHONY: install.provider
+install.provider: ## Install this provider
+	@$(SED) 's/VERSION/$(VERSION)/g' ./examples/provider.yaml | @$(KUBECTL) apply -f -
+
+
+.PHONY: cr.token
+cr.token: ## Create the secret for container registry credentials
+	@$(KUBECTL) create secret docker-registry cr-token \
 	--namespace crossplane-system --docker-server=ghcr.io \
 	--docker-password=$(GITHUB_TOKEN) --docker-username=$(ORG_NAME)
 
-.PHONY: docker.login
-docker.login:
-	docker login ghcr.io --username $(ORG_NAME) --password $(GITHUB_TOKEN)
-
-token:
-	$(KUBECTL) create namespace krateo-system || true
-	$(KUBECTL) create secret generic git-token-secret \
-	    --from-file=token=./token.txt --namespace krateo-system
+.PHONY: help
+help: ## print this help
+	@grep -E '^[a-zA-Z\._-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

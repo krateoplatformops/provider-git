@@ -42,9 +42,8 @@ experiments/**
 **/*.env
 
 # Secrets files
-token.txt
-password.txt
-
+**/password.txt
+**/token.txt
 
 # Crossplane stuffs
 /.cache
