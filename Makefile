@@ -73,8 +73,6 @@ dev: #generate
 ## generate: Generate all CRDs
 generate: tidy
 	go generate ./...
-	@find package/crds -name *.yaml -exec sed -i.sed -e '1,2d' {} \;
-	@find package/crds -name *.yaml.sed -delete
 
 .PHONY: tidy
 tidy:
