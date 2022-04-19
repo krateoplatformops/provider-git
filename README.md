@@ -75,7 +75,7 @@ metadata:
 spec:
   forProvider:
     fromRepo:
-      url: https://github.com/projectkerberus/aws-stack-template
+      url: # ENTER SOURCE REPOSITORY URL HERE
       path: skeleton
       apiCredentials:
         source: Secret
