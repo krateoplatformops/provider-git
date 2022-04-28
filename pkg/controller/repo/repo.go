@@ -5,7 +5,10 @@ import (
 	"errors"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -39,8 +42,9 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 	rec := managed.NewReconciler(mgr,
 		resource.ManagedKind(repov1alpha1.RepoGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			kube: mgr.GetClient(),
-			log:  log,
+			kube:     mgr.GetClient(),
+			log:      log,
+			recorder: mgr.GetEventRecorderFor("Repo"),
 		}),
 		managed.WithLogger(log),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
@@ -53,8 +57,9 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 }
 
 type connector struct {
-	kube client.Client
-	log  logging.Logger
+	kube     client.Client
+	log      logging.Logger
+	recorder record.EventRecorder
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
@@ -68,7 +73,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, err
 	}
 
-	return &external{kube: c.kube, log: c.log, cfg: cfg}, nil
+	return &external{kube: c.kube, log: c.log, cfg: cfg, rec: c.recorder}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
@@ -77,6 +82,7 @@ type external struct {
 	kube client.Client
 	log  logging.Logger
 	cfg  *repo.ProviderOpts
+	rec  record.EventRecorder
 }
 
 func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -99,6 +105,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	if ok {
 		e.log.Debug("Target repo already exists", "url", toRepo.Url)
+		e.rec.Event(cr, corev1.EventTypeNormal, "AlredyExists", "Target repo already exists")
 
 		cr.SetConditions(xpv1.Available())
 		return managed.ExternalObservation{
@@ -140,18 +147,21 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo created", "url", toRepoOpts.Url)
+	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCreated", "Target repo created")
 
 	toRepo, err := git.Clone(toRepoOpts.Url, git.RepoCreds{Password: toRepoOpts.ApiToken})
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", toRepoOpts.Url)
+	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCloned", "Target repo cloned")
 
 	fromRepo, err := git.Clone(fromRepoOpts.Url, git.RepoCreds{Password: fromRepoOpts.ApiToken})
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Origin repo cloned", "url", fromRepoOpts.Url)
+	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCloned", "Origin repo cloned")
 
 	err = toRepo.Branch("main")
 	if err != nil {
@@ -173,18 +183,21 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		"toUrl", toRepoOpts.Url,
 		"fromPath", fromRepoOpts.Path,
 		"toPath", toRepoOpts.Path)
+	e.rec.Event(cr, corev1.EventTypeNormal, "RepoSync", "Origin and target repo synchronized")
 
 	err = toRepo.Commit(".", ":rocket: first commit")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo committed branch main")
+	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCommit", "Target repo committed branch main")
 
 	err = toRepo.Push("origin", "main")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo pushed branch main")
+	e.rec.Event(cr, corev1.EventTypeNormal, "RepoPush", "Target repo pushed branch main")
 
 	return managed.ExternalCreation{}, nil
 }

@@ -77,6 +77,7 @@ type RepoStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Namespace
 
 // A Repo is a managed resource that represents a Krateo Git Repository
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
@@ -92,6 +93,7 @@ type Repo struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Namespace
 
 // RepoList contains a list of Repo.
 type RepoList struct {
