@@ -2,7 +2,7 @@ apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   namespace: crossplane-system
-  name: crossplane-provider-argocd-token
+  name: crossplane-provider-git
   annotations:
     # A one sentence description of the package.
     meta.crossplane.io/description: |
