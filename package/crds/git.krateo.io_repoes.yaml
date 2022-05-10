@@ -26,6 +26,12 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Synced')].status
       name: SYNCED
       type: string
+    - jsonPath: .status.atProvider.deploymentId
+      name: DEPLOYMENT_ID
+      type: string
+    - jsonPath: .status.atProvider.commitId
+      name: COMMIT_ID
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -57,6 +63,9 @@ spec:
                 type: string
               forProvider:
                 properties:
+                  deploymentId:
+                    description: 'DeploymentId: correlationId with UI'
+                    type: string
                   fromRepo:
                     description: 'FromRepo: .'
                     properties:
@@ -188,8 +197,11 @@ spec:
             properties:
               atProvider:
                 properties:
-                  commit:
+                  commitId:
                     description: 'CommitId: commit id of the last copy.'
+                    type: string
+                  deploymentId:
+                    description: 'DeploymentId: correlation identifier with UI'
                     type: string
                 type: object
               conditions:
