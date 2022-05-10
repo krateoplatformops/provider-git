@@ -15,4 +15,3 @@ spec:
       namespace: default
       name: github-token
       key: token
-
