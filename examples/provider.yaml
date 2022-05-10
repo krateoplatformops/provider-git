@@ -1,7 +1,7 @@
 apiVersion: pkg.crossplane.io/v1alpha1
 kind: ControllerConfig
 metadata:
-  name: debug-config
+  name: controller-config
 spec:
   args:
     - --debug
@@ -9,11 +9,11 @@ spec:
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: crossplane-provider-git
+  name: provider-git
 spec:
   package: 'ghcr.io/krateoplatformops/crossplane-provider-git:VERSION'
   packagePullPolicy: Always
   packagePullSecrets:
   - name: cr-token
   controllerConfigRef:
-    name: debug-config
+    name: controller-config

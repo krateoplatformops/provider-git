@@ -37,6 +37,30 @@ type Repo struct {
 	repo   *git.Repository
 }
 
+func Tags(repoUrl string, creds RepoCreds) ([]string, error) {
+	// Create the remote with repository URL
+	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{repoUrl},
+	})
+
+	// We can then use every Remote functions to retrieve wanted information
+	refs, err := rem.List(&git.ListOptions{Auth: creds.Credentials()})
+	if err != nil {
+		return nil, err
+	}
+
+	// Filters the references list and only keeps tags
+	var tags []string
+	for _, ref := range refs {
+		if ref.Name().IsTag() {
+			tags = append(tags, ref.Name().Short())
+		}
+	}
+
+	return tags, nil
+}
+
 func Clone(repoUrl string, creds RepoCreds) (*Repo, error) {
 	res := &Repo{
 		rawURL: repoUrl,
@@ -211,4 +235,76 @@ func getHeadCommit(s *Repo) (*object.Commit, error) {
 
 	// retrieve the commit object
 	return s.repo.CommitObject(ref.Hash())
+}
+
+func TagExists(tag string, r *git.Repository) (bool, error) {
+	//Info("git show-ref --tag")
+	tags, err := r.TagObjects()
+	if err != nil {
+		return false, err
+	}
+
+	exists := false
+	tagFoundErr := "tag was found"
+	err = tags.ForEach(func(t *object.Tag) error {
+		if t.Name == tag {
+			exists = true
+			return fmt.Errorf(tagFoundErr)
+		}
+		return nil
+	})
+	if err != nil && err.Error() != tagFoundErr {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (s *Repo) CreateTag(tag string) (bool, error) {
+	r := s.repo
+
+	exists, err := TagExists(tag, r)
+	if err != nil {
+		return false, err
+	}
+	if exists {
+		return false, nil
+	}
+
+	h, err := r.Head()
+	if err != nil {
+		return false, err
+	}
+
+	//Info("git tag -a %s %s -m \"%s\"", tag, h.Hash(), tag)
+	_, err = r.CreateTag(tag, h.Hash(), &git.CreateTagOptions{
+		Message: tag,
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (s *Repo) PushTags(creds RepoCreds) error {
+	r := s.repo
+
+	opts := &git.PushOptions{
+		RemoteName: "origin",
+		//Progress:   os.Stdout,
+		RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+		Auth:     creds.Credentials(),
+	}
+	//Info("git push --tags")
+	err := r.Push(opts)
+	if err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			//log.Print("origin remote was up to date, no push done")
+			return nil
+		}
+		//log.Printf("push to remote origin error: %s", err)
+		return err
+	}
+
+	return nil
 }

@@ -6,11 +6,22 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
+// RepoCredentials required to authenticate.
+type RepoCredentials struct {
+	// Source of the ReST API Token.
+	// +kubebuilder:validation:Enum=None;Secret;Environment
+	Source xpv1.CredentialsSource `json:"source"`
+
+	xpv1.CommonCredentialSelectors `json:",inline"`
+}
+
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
-	// Verbose is true dumps your client requests and responses.
-	// +optional
-	Verbose *bool `json:"verbose,omitempty"`
+	// FromRepoCredentials required to authenticate ReST API git server.
+	FromRepoCredentials *RepoCredentials `json:"fromRepoCredentials,omitempty"`
+
+	// ToCredentials required to authenticate ReST API git server.
+	ToRepoCredentials *RepoCredentials `json:"toRepoCredentials,omitempty"`
 }
 
 // A ProviderConfigStatus reflects the observed state of a ProviderConfig.

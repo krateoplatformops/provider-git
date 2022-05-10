@@ -19,30 +19,11 @@ type RepoOpts struct {
 	// +immutable
 	Url string `json:"url"`
 
-	// ApiUrl: the baseUrl for the REST API provider.
-	// +optional
-	// +immutable
-	ApiUrl *string `json:"apiUrl,omitempty"`
-
-	// ApiCredentials required to authenticate ReST API git server.
-	ApiCredentials RepoCredentials `json:"apiCredentials"`
-
-	// Provider: the REST API provider.
-	// Actually only 'github' is supported.
-	// +optional
-	// +immutable
-	Provider *string `json:"provider,omitempty"`
-
 	// Path: name of the folder in the git repository
 	// to copy from (or to).
 	// +optional
 	// +immutable
 	Path *string `json:"path,omitempty"`
-
-	// Private: used only for target repository.
-	// +optional
-	// +immutable
-	Private *bool `json:"private,omitempty"`
 }
 
 type RepoParameters struct {

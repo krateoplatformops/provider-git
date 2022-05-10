@@ -3,7 +3,6 @@ module github.com/krateoplatformops/provider-git
 go 1.18
 
 require (
-	github.com/carlmjohnson/requests v0.22.2
 	github.com/crossplane/crossplane-runtime v0.15.1-0.20220315141414-988c9ba9c255
 	github.com/crossplane/crossplane-tools v0.0.0-20220310165030-1f43fc12793e
 	github.com/go-git/go-billy/v5 v5.3.1

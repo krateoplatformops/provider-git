@@ -9,9 +9,6 @@ type RepoOpts struct {
 	// Url: the repository URL.
 	Url string
 
-	// ApiUrl: the baseUrl for the REST API provider.
-	ApiUrl string
-
 	// ApiToken: the access token for invoking REST API provider.
 	ApiToken string
 

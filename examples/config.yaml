@@ -3,4 +3,16 @@ kind: ProviderConfig
 metadata:
   name: provider-git-config
 spec:
-  verbose: false
+  fromRepoCredentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: github-token
+      key: token
+  toRepoCredentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: github-token
+      key: token
+

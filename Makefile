@@ -119,9 +119,7 @@ install.provider: cr.secret ## Install this provider
 
 .PHONY: example.secrets
 example.secrets: ## Create the example secrets
-	@$(KUBECTL) create secret generic from-repo-token --from-literal=token=$(PROVIDER_GIT) || true
-	@$(KUBECTL) create secret generic to-repo-token --from-literal=token=$(PROVIDER_GIT) || true
-
+	@$(KUBECTL) create secret generic github-token --from-literal=token=$(PROVIDER_GIT) || true
 
 .PHONY: help
 help: ## print this help

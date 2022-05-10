@@ -47,9 +47,109 @@ spec:
           spec:
             description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
             properties:
-              verbose:
-                description: Verbose is true dumps your client requests and responses.
-                type: boolean
+              fromRepoCredentials:
+                description: FromRepoCredentials required to authenticate ReST API
+                  git server.
+                properties:
+                  env:
+                    description: Env is a reference to an environment variable that
+                      contains credentials that must be used to connect to the provider.
+                    properties:
+                      name:
+                        description: Name is the name of an environment variable.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  fs:
+                    description: Fs is a reference to a filesystem location that contains
+                      credentials that must be used to connect to the provider.
+                    properties:
+                      path:
+                        description: Path is a filesystem path.
+                        type: string
+                    required:
+                    - path
+                    type: object
+                  secretRef:
+                    description: A SecretRef is a reference to a secret key that contains
+                      the credentials that must be used to connect to the provider.
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                  source:
+                    description: Source of the ReST API Token.
+                    enum:
+                    - None
+                    - Secret
+                    - Environment
+                    type: string
+                required:
+                - source
+                type: object
+              toRepoCredentials:
+                description: ToCredentials required to authenticate ReST API git server.
+                properties:
+                  env:
+                    description: Env is a reference to an environment variable that
+                      contains credentials that must be used to connect to the provider.
+                    properties:
+                      name:
+                        description: Name is the name of an environment variable.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  fs:
+                    description: Fs is a reference to a filesystem location that contains
+                      credentials that must be used to connect to the provider.
+                    properties:
+                      path:
+                        description: Path is a filesystem path.
+                        type: string
+                    required:
+                    - path
+                    type: object
+                  secretRef:
+                    description: A SecretRef is a reference to a secret key that contains
+                      the credentials that must be used to connect to the provider.
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                  source:
+                    description: Source of the ReST API Token.
+                    enum:
+                    - None
+                    - Secret
+                    - Environment
+                    type: string
+                required:
+                - source
+                type: object
             type: object
           status:
             description: A ProviderConfigStatus reflects the observed state of a ProviderConfig.

@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,7 @@ import (
 	"github.com/krateoplatformops/provider-git/pkg/clients"
 	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 	"github.com/krateoplatformops/provider-git/pkg/clients/repo"
+	"github.com/krateoplatformops/provider-git/pkg/helpers"
 )
 
 const (
@@ -68,21 +70,28 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.New(errNotRepo)
 	}
 
-	cfg, err := clients.GetConfig(ctx, c.kube, cr)
+	frc, trc, err := clients.GetCredentials(ctx, c.kube, cr)
 	if err != nil {
 		return nil, err
 	}
 
-	return &external{kube: c.kube, log: c.log, cfg: cfg, rec: c.recorder}, nil
+	return &external{
+		kube:          c.kube,
+		log:           c.log,
+		fromRepoCreds: frc,
+		toRepoCreds:   trc,
+		rec:           c.recorder,
+	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	kube client.Client
-	log  logging.Logger
-	cfg  *repo.ProviderOpts
-	rec  record.EventRecorder
+	kube          client.Client
+	log           logging.Logger
+	fromRepoCreds git.RepoCreds
+	toRepoCreds   git.RepoCreds
+	rec           record.EventRecorder
 }
 
 func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -93,19 +102,21 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	toRepo, err := newRepoOpts(ctx, e.kube, &spec.ToRepo)
+	toRepoUrl := spec.ToRepo.Url
+	toRepoCreds, _, err := clients.GetCredentials(ctx, e.kube, mg)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
 
-	ok, err = repo.Exists(e.cfg, toRepo)
+	// Check if target repo exists
+	tags, err := git.Tags(toRepoUrl, toRepoCreds)
 	if err != nil {
-		return managed.ExternalObservation{}, err
+		return managed.ExternalObservation{}, fmt.Errorf("%s :%w", toRepoUrl, err)
 	}
 
-	if ok {
-		e.log.Debug("Target repo already exists", "url", toRepo.Url)
-		e.rec.Event(cr, corev1.EventTypeNormal, "AlredyExists", "Target repo already exists")
+	if len(tags) > 0 {
+		e.log.Debug("Target repo is not empty", "url", toRepoUrl)
+		e.rec.Event(cr, corev1.EventTypeNormal, "RepoNotEmpty", "Target repo is not empty")
 
 		cr.SetConditions(xpv1.Available())
 		return managed.ExternalObservation{
@@ -114,7 +125,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		}, nil
 	}
 
-	e.log.Debug("Target repo does not exists", "url", toRepo.Url)
+	e.log.Debug("Target repo is empty", "url", toRepoUrl)
 
 	return managed.ExternalObservation{
 		ResourceExists:   false,
@@ -132,35 +143,18 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	fromRepoOpts, err := newRepoOpts(ctx, e.kube, &spec.FromRepo)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.toRepoCreds)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
-
-	toRepoOpts, err := newRepoOpts(ctx, e.kube, &spec.ToRepo)
-	if err != nil {
-		return managed.ExternalCreation{}, err
-	}
-
-	err = repo.Create(e.cfg, toRepoOpts)
-	if err != nil {
-		return managed.ExternalCreation{}, err
-	}
-	e.log.Debug("Target repo created", "url", toRepoOpts.Url)
-	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCreated", "Target repo created")
-
-	toRepo, err := git.Clone(toRepoOpts.Url, git.RepoCreds{Password: toRepoOpts.ApiToken})
-	if err != nil {
-		return managed.ExternalCreation{}, err
-	}
-	e.log.Debug("Target repo cloned", "url", toRepoOpts.Url)
+	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
 	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCloned", "Target repo cloned")
 
-	fromRepo, err := git.Clone(fromRepoOpts.Url, git.RepoCreds{Password: fromRepoOpts.ApiToken})
+	fromRepo, err := git.Clone(spec.FromRepo.Url, e.fromRepoCreds)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
-	e.log.Debug("Origin repo cloned", "url", fromRepoOpts.Url)
+	e.log.Debug("Origin repo cloned", "url", spec.FromRepo.Url)
 	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCloned", "Origin repo cloned")
 
 	err = toRepo.Branch("main")
@@ -172,17 +166,17 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	err = repo.Copy(repo.CopyOpts{
 		FromRepo: fromRepo,
 		ToRepo:   toRepo,
-		FromPath: fromRepoOpts.Path,
-		ToPath:   toRepoOpts.Path,
+		FromPath: helpers.StringValue(spec.FromRepo.Path),
+		ToPath:   helpers.StringValue(spec.ToRepo.Path),
 	})
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Origin and target repo synchronized",
-		"fromUrl", fromRepoOpts.Url,
-		"toUrl", toRepoOpts.Url,
-		"fromPath", fromRepoOpts.Path,
-		"toPath", toRepoOpts.Path)
+		"fromUrl", spec.FromRepo.Url,
+		"toUrl", spec.ToRepo.Url,
+		"fromPath", helpers.StringValue(spec.FromRepo.Path),
+		"toPath", helpers.StringValue(spec.ToRepo.Path))
 	e.rec.Event(cr, corev1.EventTypeNormal, "RepoSync", "Origin and target repo synchronized")
 
 	err = toRepo.Commit(".", ":rocket: first commit")
@@ -198,6 +192,20 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	e.log.Debug("Target repo pushed branch main")
 	e.rec.Event(cr, corev1.EventTypeNormal, "RepoPush", "Target repo pushed branch main")
+
+	tagged, err := toRepo.CreateTag("0.1.0")
+	if err != nil {
+		return managed.ExternalCreation{}, fmt.Errorf("create tag error: %w", err)
+	}
+
+	if tagged {
+		err = toRepo.PushTags(e.toRepoCreds)
+		if err != nil {
+			return managed.ExternalCreation{}, fmt.Errorf("push tag error: %w", err)
+		}
+	}
+
+	cr.SetConditions(xpv1.Available())
 
 	return managed.ExternalCreation{}, nil
 }

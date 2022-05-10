@@ -3,94 +3,96 @@ package clients
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httputil"
-	"os"
-	"time"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/krateoplatformops/provider-git/apis/v1alpha1"
-	"github.com/krateoplatformops/provider-git/pkg/clients/repo"
+	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 	"github.com/krateoplatformops/provider-git/pkg/helpers"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetConfig constructs a CreateOpts configuration that
-// can be used to authenticate to the git API provider by the ReST client
-func GetConfig(ctx context.Context, c client.Client, mg resource.Managed) (*repo.ProviderOpts, error) {
+// GetCredentials constructs a RepoCreds pair that can be used to authenticate to the git provider.
+func GetCredentials(ctx context.Context, c client.Client, mg resource.Managed) (git.RepoCreds, git.RepoCreds, error) {
 	switch {
 	case mg.GetProviderConfigReference() != nil:
-		return UseProviderConfig(ctx, c, mg)
+		return useProviderConfig(ctx, c, mg)
 	default:
-		return nil, errors.New("providerConfigRef is not given")
+		return git.RepoCreds{}, git.RepoCreds{}, errors.New("providerConfigRef is not given")
 	}
 }
 
-// UseProviderConfig to produce a config that can be used to create an ArgoCD client.
-func UseProviderConfig(ctx context.Context, k client.Client, mg resource.Managed) (*repo.ProviderOpts, error) {
+// useProviderConfig to produce a config that can be used to copy a repo content.
+func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed) (git.RepoCreds, git.RepoCreds, error) {
 	pc := &v1alpha1.ProviderConfig{}
 	err := k.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot get referenced Provider")
+		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrap(err, "cannot get referenced Provider")
 	}
 
 	t := resource.NewProviderConfigUsageTracker(k, &v1alpha1.ProviderConfigUsage{})
 	err = t.Track(ctx, mg)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot track ProviderConfig usage")
+		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrap(err, "cannot track ProviderConfig usage")
 	}
 
-	cfg := &repo.ProviderOpts{
-		Verbose: helpers.IsBoolPtrEqualToBool(pc.Spec.Verbose, true),
+	frc, err := getFromRepoCredentials(ctx, k, pc)
+	if err != nil {
+		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrapf(err, "retrieving from repo credentials")
 	}
 
-	if cfg.Verbose {
-		cfg.HttpClient = &http.Client{
-			Transport: &verboseTracer{http.DefaultTransport},
-			Timeout:   50 * time.Second,
-		}
+	trc, err := getToRepoCredentials(ctx, k, pc)
+	if err != nil {
+		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrapf(err, "retrieving to repo credentials")
 	}
 
-	return cfg, nil
+	return frc, trc, nil
 }
 
-// verboseTracer implements http.RoundTripper.  It prints each request and
-// response/error to os.Stderr.  WARNING: this may output sensitive information
-// including bearer tokens.
-type verboseTracer struct {
-	http.RoundTripper
+// getFromRepoCredentials returns the from repo credentials stored in a secret.
+func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (git.RepoCreds, error) {
+	if pc.Spec.FromRepoCredentials == nil {
+		return git.RepoCreds{}, nil
+	}
+
+	if s := pc.Spec.FromRepoCredentials.Source; s != xpv1.CredentialsSourceSecret {
+		return git.RepoCreds{}, fmt.Errorf("credentials source %s is not currently supported", s)
+	}
+
+	csr := pc.Spec.FromRepoCredentials.SecretRef
+	if csr == nil {
+		return git.RepoCreds{}, fmt.Errorf("no credentials secret referenced")
+	}
+
+	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
+	if err != nil {
+		return git.RepoCreds{}, err
+	}
+
+	return git.RepoCreds{Password: token}, nil
 }
 
-// RoundTrip calls the nested RoundTripper while printing each request and
-// response/error to os.Stderr on either side of the nested call.  WARNING: this
-// may output sensitive information including bearer tokens.
-func (t *verboseTracer) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Dump the request to os.Stderr.
-	b, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		return nil, err
-	}
-	os.Stderr.Write(b)
-	os.Stderr.Write([]byte{'\n'})
-
-	// Call the nested RoundTripper.
-	resp, err := t.RoundTripper.RoundTrip(req)
-
-	// If an error was returned, dump it to os.Stderr.
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return resp, err
+// getToRepoCredentials returns the to repo credentials stored in a secret.
+func getToRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (git.RepoCreds, error) {
+	if pc.Spec.ToRepoCredentials == nil {
+		return git.RepoCreds{}, nil
 	}
 
-	// Dump the response to os.Stderr.
-	b, err = httputil.DumpResponse(resp, req.URL.Query().Get("watch") != "true")
-	if err != nil {
-		return nil, err
+	if s := pc.Spec.ToRepoCredentials.Source; s != xpv1.CredentialsSourceSecret {
+		return git.RepoCreds{}, fmt.Errorf("credentials source %s is not currently supported", s)
 	}
-	os.Stderr.Write(b)
-	os.Stderr.Write([]byte{'\n'})
 
-	return resp, err
+	csr := pc.Spec.ToRepoCredentials.SecretRef
+	if csr == nil {
+		return git.RepoCreds{}, fmt.Errorf("no credentials secret referenced")
+	}
+
+	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
+	if err != nil {
+		return git.RepoCreds{}, err
+	}
+
+	return git.RepoCreds{Password: token}, nil
 }
