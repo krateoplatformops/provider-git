@@ -149,7 +149,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalCreation{}, errors.New(errNotRepo)
 	}
 
-	cr.SetConditions(xpv1.Creating())
+	cr.Status.SetConditions(xpv1.Creating())
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 	deploymentId := helpers.StringValue(spec.DeploymentId)
@@ -194,8 +194,8 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
-	e.log.Debug("Target repo committed branch main")
-	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Target repo committed branch main")
+	e.log.Debug("Target repo committed branch main", "commitId", commitId)
+	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, fmt.Sprintf("Target repo committed (%s)", commitId))
 
 	err = toRepo.Push("origin", "main")
 	if err != nil {
@@ -219,7 +219,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr.Status.AtProvider.DeploymentId = helpers.StringPtr(deploymentId)
 	cr.Status.AtProvider.CommitId = helpers.StringPtr(commitId)
 
-	cr.SetConditions(xpv1.Available())
+	//cr.Status.SetConditions(xpv1.Available())
 
 	return managed.ExternalCreation{}, nil
 }

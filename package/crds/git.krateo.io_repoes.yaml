@@ -11,7 +11,7 @@ spec:
   names:
     categories:
     - crossplane
-    - managed
+    - krateo
     - git
     kind: Repo
     listKind: RepoList
@@ -32,6 +32,9 @@ spec:
     - jsonPath: .status.atProvider.commitId
       name: COMMIT_ID
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:

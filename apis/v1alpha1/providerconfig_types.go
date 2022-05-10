@@ -30,12 +30,11 @@ type ProviderConfigStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:scope=Namespace
 
 // A ProviderConfig configures a Template provider.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="DEBUG",type=boolean,JSONPath=".spec.debug",priority=1
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,git}
+// +kubebuilder:resource:scope=Cluster,categories={crossplane,krateo,git}
 // +kubebuilder:subresource:status
 type ProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
