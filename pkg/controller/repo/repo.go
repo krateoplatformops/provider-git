@@ -29,6 +29,12 @@ import (
 
 const (
 	errNotRepo = "managed resource is not a repo custom resource"
+
+	repoNotEmpty = "RepoNotEmpty"
+	repoCloned   = "RepoCloned"
+	repoSync     = "RepoSync"
+	repoPushed   = "RepoPushed"
+	repoCommit   = "RepoCommit"
 )
 
 // Setup adds a controller that reconciles Token managed resources.
@@ -116,7 +122,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	if len(tags) > 0 {
 		e.log.Debug("Target repo is not empty", "url", toRepoUrl)
-		e.rec.Event(cr, corev1.EventTypeNormal, "RepoNotEmpty", "Target repo is not empty")
+		e.rec.Event(cr, corev1.EventTypeNormal, repoNotEmpty, "Target repo is not empty")
 
 		cr.SetConditions(xpv1.Available())
 		return managed.ExternalObservation{
@@ -142,20 +148,21 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr.SetConditions(xpv1.Creating())
 
 	spec := cr.Spec.ForProvider.DeepCopy()
+	deploymentId := helpers.StringValue(spec.DeploymentId)
 
 	toRepo, err := git.Clone(spec.ToRepo.Url, e.toRepoCreds)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
-	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCloned", "Target repo cloned")
+	e.rec.Event(cr, corev1.EventTypeNormal, repoCloned, "Target repo cloned")
 
 	fromRepo, err := git.Clone(spec.FromRepo.Url, e.fromRepoCreds)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Origin repo cloned", "url", spec.FromRepo.Url)
-	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCloned", "Origin repo cloned")
+	e.rec.Event(cr, corev1.EventTypeNormal, repoCloned, "Origin repo cloned")
 
 	err = toRepo.Branch("main")
 	if err != nil {
@@ -177,21 +184,21 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		"toUrl", spec.ToRepo.Url,
 		"fromPath", helpers.StringValue(spec.FromRepo.Path),
 		"toPath", helpers.StringValue(spec.ToRepo.Path))
-	e.rec.Event(cr, corev1.EventTypeNormal, "RepoSync", "Origin and target repo synchronized")
+	e.rec.Event(cr, corev1.EventTypeNormal, repoSync, "Origin and target repo synchronized")
 
-	err = toRepo.Commit(".", ":rocket: first commit")
+	commitId, err := toRepo.Commit(".", ":rocket: first commit")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo committed branch main")
-	e.rec.Event(cr, corev1.EventTypeNormal, "RepoCommit", "Target repo committed branch main")
+	e.rec.Event(cr, corev1.EventTypeNormal, repoCommit, "Target repo committed branch main")
 
 	err = toRepo.Push("origin", "main")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo pushed branch main")
-	e.rec.Event(cr, corev1.EventTypeNormal, "RepoPush", "Target repo pushed branch main")
+	e.rec.Event(cr, corev1.EventTypeNormal, repoPushed, "Target repo pushed branch main")
 
 	tagged, err := toRepo.CreateTag("0.1.0")
 	if err != nil {
@@ -204,6 +211,9 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			return managed.ExternalCreation{}, fmt.Errorf("push tag error: %w", err)
 		}
 	}
+
+	cr.Status.AtProvider.DeploymentId = deploymentId
+	cr.Status.AtProvider.CommitId = commitId
 
 	cr.SetConditions(xpv1.Available())
 

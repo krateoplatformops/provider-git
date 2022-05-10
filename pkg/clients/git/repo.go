@@ -132,18 +132,18 @@ func (s *Repo) Branch(name string) error {
 	})
 }
 
-func (s *Repo) Commit(path, msg string) error {
+func (s *Repo) Commit(path, msg string) (string, error) {
 	wt, err := s.repo.Worktree()
 	if err != nil {
-		return err
+		return "", err
 	}
 	// git add $path
 	if _, err := wt.Add(path); err != nil {
-		return err
+		return "", err
 	}
 
 	// git commit -m $message
-	_, err = wt.Commit(msg, &git.CommitOptions{
+	hash, err := wt.Commit(msg, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  commitAuthorName,
 			Email: commitAuthorEmail,
@@ -151,10 +151,10 @@ func (s *Repo) Commit(path, msg string) error {
 		},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return hash.String(), nil
 }
 
 func (s *Repo) Push(downstream, branch string) error {

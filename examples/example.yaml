@@ -4,6 +4,7 @@ metadata:
   name: provider-git-example
 spec:
   forProvider:
+    deploymentId: "1234567890"
     fromRepo:
       url: https://github.com/projectkerberus/aws-stack-template
       path: skeleton

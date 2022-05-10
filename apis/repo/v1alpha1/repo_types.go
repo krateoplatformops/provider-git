@@ -27,6 +27,10 @@ type RepoOpts struct {
 }
 
 type RepoParameters struct {
+	// DeploymentId: correlationId with UI
+	// +optional
+	DeploymentId *string `json:"deploymentId"`
+
 	// FromRepo: .
 	// +immutable
 	FromRepo RepoOpts `json:"fromRepo"`
@@ -37,9 +41,8 @@ type RepoParameters struct {
 }
 
 type RepoObservation struct {
-	// CreationTimestamp: Creation timestamp in RFC3339 text
-	// format.
-	//CreationTimestamp string `json:"creationTimestamp,omitempty"`
+	// DeploymentId: correlation identifier with UI
+	DeploymentId string `json:"deploymentId,omitempty"`
 
 	// CommitId: commit id of the last copy.
 	CommitId string `json:"commit,omitempty"`
