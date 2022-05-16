@@ -1,8 +1,7 @@
 apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  namespace: crossplane-system
-  name: crossplane-provider-git
+  name: provider-git
   annotations:
     # A one sentence description of the package.
     meta.crossplane.io/description: |
@@ -11,4 +10,4 @@ metadata:
     friendly-name.meta.crossplane.io: "Krateo PlatformOps Git Provider"
 spec:
   controller:
-    image: ghcr.io/krateoplatformops/provider-git:VERSION
+    image: ghcr.io/krateoplatformops/provider-git-controller:VERSION
