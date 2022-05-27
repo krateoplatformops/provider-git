@@ -31,13 +31,6 @@ import (
 const (
 	errNotRepo = "managed resource is not a repo custom resource"
 
-	/*
-		repoNotEmpty = "RepoNotEmpty"
-		repoCloned   = "RepoCloned"
-		repoSync     = "RepoSync"
-		repoPushed   = "RepoPushed"
-		repoCommit   = "RepoCommit"
-	*/
 	reasonCannotCreate = "CannotCreateExternalResource"
 	reasonCreated      = "CreatedExternalResource"
 )
@@ -152,6 +145,9 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
+	e.log.Debug("Claim and Package info fetched", "deploymentId", deploymentId)
+	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
+		fmt.Sprintf("Claim and Package info fetched (deploymentId: %s)", deploymentId))
 
 	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds)
 	if err != nil {
@@ -196,25 +192,29 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	e.log.Debug("Origin and target repo synchronized",
+		"deploymentId", spec.DeploymentId,
 		"fromUrl", spec.FromRepo.Url,
 		"toUrl", spec.ToRepo.Url,
 		"fromPath", helpers.StringValue(spec.FromRepo.Path),
 		"toPath", helpers.StringValue(spec.ToRepo.Path))
-	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Origin and target repo synchronized")
+	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
+		fmt.Sprintf("Origin and target repo synchronized (deploymentId: %s)", deploymentId))
 
 	commitId, err := toRepo.Commit(".", ":rocket: first commit")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo committed branch main", "commitId", commitId)
-	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, fmt.Sprintf("Target repo committed (%s)", commitId))
+	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
+		fmt.Sprintf("Target repo committed (deploymentId:%s, commitId:%s)", deploymentId, commitId))
 
 	err = toRepo.Push("origin", "main")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
-	e.log.Debug("Target repo pushed branch main")
-	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Target repo pushed branch main")
+	e.log.Debug("Target repo pushed branch main", "deploymentId", deploymentId)
+	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
+		fmt.Sprintf("Target repo pushed branch main (deploymentId:%s)", deploymentId))
 
 	tagged, err := toRepo.CreateTag("0.1.0")
 	if err != nil {

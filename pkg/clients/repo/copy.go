@@ -86,23 +86,10 @@ func CopyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 		return fmt.Errorf("source is not a directory")
 	}
 
-	_, err = toFS.Stat(dst)
-	if err != nil && !os.IsNotExist(err) {
-		return
-	}
-
-	/*
-		if err == nil {
-			//err = toFS.Remove(dst)
-			//if err != nil {
-			//	return
-			//}
-			err = toFS.MkdirAll(dst, si.Mode())
-			if err != nil {
-				return
-			}
-			//return fmt.Errorf("destination already exists")
-		}*/
+	//_, err = toFS.Stat(dst)
+	//if err != nil && !os.IsNotExist(err) {
+	//	return
+	//}
 
 	err = toFS.MkdirAll(dst, si.Mode())
 	if err != nil {

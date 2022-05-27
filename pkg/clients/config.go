@@ -44,12 +44,12 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 		return nil, errors.Wrap(err, "cannot track ProviderConfig usage")
 	}
 
-	ret := &Config{
-		DeploymentServiceUrl: pc.Spec.DeploymentServiceUrl,
+	if len(pc.Spec.DeploymentServiceUrl) == 0 {
+		return nil, errors.Wrapf(err, "deplyment service url must be specified")
 	}
 
-	if len(ret.DeploymentServiceUrl) == 0 {
-		return nil, errors.Wrapf(err, "deplyment service url must be specified")
+	ret := &Config{
+		DeploymentServiceUrl: pc.Spec.DeploymentServiceUrl,
 	}
 
 	ret.FromRepoCreds, err = getFromRepoCredentials(ctx, k, pc)
