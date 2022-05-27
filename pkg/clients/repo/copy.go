@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -29,10 +30,26 @@ func Copy(cfg CopyOpts) (err error) {
 		toPath = "/"
 	}
 
-	return copyDir(cfg.FromRepo.FS(), cfg.ToRepo.FS(), fromPath, toPath)
+	return CopyDir(cfg.FromRepo.FS(), cfg.ToRepo.FS(), fromPath, toPath)
 }
 
-func copyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
+func CopyBytes(toFS billy.Filesystem, src []byte, dstfn string) (err error) {
+	out, err := toFS.Create(dstfn)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if e := out.Close(); e != nil {
+			err = e
+		}
+	}()
+
+	_, err = io.Copy(out, bytes.NewReader(src))
+	return
+}
+
+func CopyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 	in, err := fromFS.Open(src)
 	if err != nil {
 		return err
@@ -57,7 +74,7 @@ func copyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 // CopyDir recursively copies a directory tree, attempting to preserve permissions.
 // Source directory must exist, destination directory must *not* exist.
 // Symlinks are ignored and skipped.
-func copyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
+func CopyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
@@ -102,7 +119,7 @@ func copyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			err = copyDir(fromFS, toFS, srcPath, dstPath)
+			err = CopyDir(fromFS, toFS, srcPath, dstPath)
 			if err != nil {
 				return
 			}
@@ -112,7 +129,7 @@ func copyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 				continue
 			}
 
-			err = copyFile(fromFS, toFS, srcPath, dstPath)
+			err = CopyFile(fromFS, toFS, srcPath, dstPath)
 			if err != nil {
 				return
 			}

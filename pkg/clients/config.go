@@ -14,41 +14,55 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// GetCredentials constructs a RepoCreds pair that can be used to authenticate to the git provider.
-func GetCredentials(ctx context.Context, c client.Client, mg resource.Managed) (git.RepoCreds, git.RepoCreds, error) {
+type Config struct {
+	DeploymentServiceUrl string
+	FromRepoCreds        git.RepoCreds
+	ToRepoCreds          git.RepoCreds
+}
+
+// GetConfig constructs a RepoCreds pair that can be used to authenticate to the git provider.
+func GetConfig(ctx context.Context, c client.Client, mg resource.Managed) (*Config, error) {
 	switch {
 	case mg.GetProviderConfigReference() != nil:
 		return useProviderConfig(ctx, c, mg)
 	default:
-		return git.RepoCreds{}, git.RepoCreds{}, errors.New("providerConfigRef is not given")
+		return nil, errors.New("providerConfigRef is not given")
 	}
 }
 
 // useProviderConfig to produce a config that can be used to copy a repo content.
-func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed) (git.RepoCreds, git.RepoCreds, error) {
+func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed) (*Config, error) {
 	pc := &v1alpha1.ProviderConfig{}
 	err := k.Get(ctx, types.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc)
 	if err != nil {
-		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrap(err, "cannot get referenced Provider")
+		return nil, errors.Wrap(err, "cannot get referenced Provider")
 	}
 
 	t := resource.NewProviderConfigUsageTracker(k, &v1alpha1.ProviderConfigUsage{})
 	err = t.Track(ctx, mg)
 	if err != nil {
-		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrap(err, "cannot track ProviderConfig usage")
+		return nil, errors.Wrap(err, "cannot track ProviderConfig usage")
 	}
 
-	frc, err := getFromRepoCredentials(ctx, k, pc)
+	ret := &Config{
+		DeploymentServiceUrl: pc.Spec.DeploymentServiceUrl,
+	}
+
+	if len(ret.DeploymentServiceUrl) == 0 {
+		return nil, errors.Wrapf(err, "deplyment service url must be specified")
+	}
+
+	ret.FromRepoCreds, err = getFromRepoCredentials(ctx, k, pc)
 	if err != nil {
-		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrapf(err, "retrieving from repo credentials")
+		return nil, errors.Wrapf(err, "retrieving from repo credentials")
 	}
 
-	trc, err := getToRepoCredentials(ctx, k, pc)
+	ret.ToRepoCreds, err = getToRepoCredentials(ctx, k, pc)
 	if err != nil {
-		return git.RepoCreds{}, git.RepoCreds{}, errors.Wrapf(err, "retrieving to repo credentials")
+		return nil, errors.Wrapf(err, "retrieving to repo credentials")
 	}
 
-	return frc, trc, nil
+	return ret, nil
 }
 
 // getFromRepoCredentials returns the from repo credentials stored in a secret.

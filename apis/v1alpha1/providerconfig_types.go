@@ -17,6 +17,10 @@ type RepoCredentials struct {
 
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
+	// DeploymentServiceUrl: the baseUrl for the Deployment service.
+	// +immutable
+	DeploymentServiceUrl string `json:"deploymentServiceUrl"`
+
 	// FromRepoCredentials required to authenticate ReST API git server.
 	FromRepoCredentials *RepoCredentials `json:"fromRepoCredentials,omitempty"`
 

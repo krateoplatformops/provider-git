@@ -22,6 +22,7 @@ import (
 
 	repov1alpha1 "github.com/krateoplatformops/provider-git/apis/repo/v1alpha1"
 	"github.com/krateoplatformops/provider-git/pkg/clients"
+	"github.com/krateoplatformops/provider-git/pkg/clients/deployment"
 	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 	"github.com/krateoplatformops/provider-git/pkg/clients/repo"
 	"github.com/krateoplatformops/provider-git/pkg/helpers"
@@ -80,28 +81,26 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.New(errNotRepo)
 	}
 
-	frc, trc, err := clients.GetCredentials(ctx, c.kube, cr)
+	cfg, err := clients.GetConfig(ctx, c.kube, cr)
 	if err != nil {
 		return nil, err
 	}
 
 	return &external{
-		kube:          c.kube,
-		log:           c.log,
-		fromRepoCreds: frc,
-		toRepoCreds:   trc,
-		rec:           c.recorder,
+		kube: c.kube,
+		log:  c.log,
+		cfg:  cfg,
+		rec:  c.recorder,
 	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	kube          client.Client
-	log           logging.Logger
-	fromRepoCreds git.RepoCreds
-	toRepoCreds   git.RepoCreds
-	rec           record.EventRecorder
+	kube client.Client
+	log  logging.Logger
+	cfg  *clients.Config
+	rec  record.EventRecorder
 }
 
 func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -113,13 +112,9 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	spec := cr.Spec.ForProvider.DeepCopy()
 
 	toRepoUrl := spec.ToRepo.Url
-	toRepoCreds, _, err := clients.GetCredentials(ctx, e.kube, mg)
-	if err != nil {
-		return managed.ExternalObservation{}, err
-	}
 
 	// Check if target repo exists
-	tags, err := git.Tags(toRepoUrl, toRepoCreds)
+	tags, err := git.Tags(toRepoUrl, e.cfg.ToRepoCreds)
 	if err != nil {
 		return managed.ExternalObservation{}, fmt.Errorf("%s :%w", toRepoUrl, err)
 	}
@@ -153,15 +148,19 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 	deploymentId := helpers.StringValue(spec.DeploymentId)
+	deployment, err := deployment.Get(e.cfg.DeploymentServiceUrl, deploymentId)
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
 
-	toRepo, err := git.Clone(spec.ToRepo.Url, e.toRepoCreds)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Target repo cloned")
 
-	fromRepo, err := git.Clone(spec.FromRepo.Url, e.fromRepoCreds)
+	fromRepo, err := git.Clone(spec.FromRepo.Url, e.cfg.FromRepoCreds)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
@@ -183,6 +182,19 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
+
+	// write claim data
+	err = repo.CopyBytes(toRepo.FS(), deployment.Claim, "claim.yaml")
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
+
+	// write package data
+	err = repo.CopyBytes(toRepo.FS(), deployment.Claim, "package.yaml")
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
+
 	e.log.Debug("Origin and target repo synchronized",
 		"fromUrl", spec.FromRepo.Url,
 		"toUrl", spec.ToRepo.Url,
@@ -210,7 +222,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	if tagged {
-		err = toRepo.PushTags(e.toRepoCreds)
+		err = toRepo.PushTags(e.cfg.ToRepoCreds)
 		if err != nil {
 			return managed.ExternalCreation{}, fmt.Errorf("push tag error: %w", err)
 		}
@@ -219,7 +231,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr.Status.AtProvider.DeploymentId = helpers.StringPtr(deploymentId)
 	cr.Status.AtProvider.CommitId = helpers.StringPtr(commitId)
 
-	//cr.Status.SetConditions(xpv1.Available())
+	cr.Status.SetConditions(xpv1.Available())
 
 	return managed.ExternalCreation{}, nil
 }

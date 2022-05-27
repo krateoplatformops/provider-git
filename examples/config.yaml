@@ -3,6 +3,7 @@ kind: ProviderConfig
 metadata:
   name: provider-git-config
 spec:
+  deploymentServiceUrl: https://deployment.krateo.site
   fromRepoCredentials:
     source: Secret
     secretRef:
