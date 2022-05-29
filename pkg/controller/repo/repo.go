@@ -169,14 +169,18 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	e.log.Debug("Target repo on branch main")
 
-	err = repo.Copy(repo.CopyOpts{
-		FromRepo: fromRepo,
-		ToRepo:   toRepo,
-		FromPath: helpers.StringValue(spec.FromRepo.Path),
-		ToPath:   helpers.StringValue(spec.ToRepo.Path),
-	})
-	if err != nil {
-		return managed.ExternalCreation{}, err
+	// If fromPath is not specified DON'T COPY!
+	fromPath := helpers.StringValue(spec.FromRepo.Path)
+	if len(fromPath) > 0 {
+		err = repo.Copy(repo.CopyOpts{
+			FromRepo: fromRepo,
+			ToRepo:   toRepo,
+			FromPath: helpers.StringValue(spec.FromRepo.Path),
+			ToPath:   helpers.StringValue(spec.ToRepo.Path),
+		})
+		if err != nil {
+			return managed.ExternalCreation{}, err
+		}
 	}
 
 	// write claim data
@@ -186,7 +190,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	// write package data
-	err = repo.CopyBytes(toRepo.FS(), deployment.Claim, "package.yaml")
+	err = repo.CopyBytes(toRepo.FS(), deployment.Package, "package.yaml")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
