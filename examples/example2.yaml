@@ -1,12 +1,13 @@
 apiVersion: git.krateo.io/v1alpha1
 kind: Repo
 metadata:
-  name: provider-git-example
+  name: provider-git-example-skeleton
 spec:
   forProvider:
     deploymentId: 626c03950944e84673f8b82b
     fromRepo:
-      url: https://github.com/krateoplatformops/krateo-template-aws-stack
+      url: https://github.com/krateoplatformops/renomy-app-template
+      path: skeleton
     toRepo:
       url: https://github.com/krateoplatformops/del-1
   providerConfigRef:

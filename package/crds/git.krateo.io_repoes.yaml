@@ -29,9 +29,6 @@ spec:
     - jsonPath: .status.atProvider.deploymentId
       name: DEPLOYMENT_ID
       type: string
-    - jsonPath: .status.atProvider.commitId
-      name: COMMIT_ID
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
@@ -200,9 +197,6 @@ spec:
             properties:
               atProvider:
                 properties:
-                  commitId:
-                    description: 'CommitId: commit id of the last copy.'
-                    type: string
                   deploymentId:
                     description: 'DeploymentId: correlation identifier with UI'
                     type: string

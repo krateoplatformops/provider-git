@@ -3,6 +3,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"time"
 
 	"github.com/go-git/go-billy/v5"
@@ -105,6 +106,19 @@ func Clone(repoUrl string, creds RepoCreds) (*Repo, error) {
 	}
 
 	return res, nil
+}
+
+func (s *Repo) Exists(path string) (bool, error) {
+	_, err := s.fs.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (s *Repo) FS() billy.Filesystem {

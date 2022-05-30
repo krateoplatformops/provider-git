@@ -104,26 +104,37 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	toRepoUrl := spec.ToRepo.Url
-
-	// Check if target repo exists
-	tags, err := git.Tags(toRepoUrl, e.cfg.ToRepoCreds)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds)
 	if err != nil {
-		return managed.ExternalObservation{}, fmt.Errorf("%s :%w", toRepoUrl, err)
+		return managed.ExternalObservation{}, err
+	}
+	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
+	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Target repo cloned")
+
+	clmOk, err := toRepo.Exists("claim.yaml")
+	if err != nil {
+		return managed.ExternalObservation{}, err
 	}
 
-	if len(tags) > 0 {
-		e.log.Debug("Target repo is not empty", "url", toRepoUrl)
-		e.rec.Event(cr, corev1.EventTypeWarning, reasonCannotCreate, "Target repo is not empty")
+	pkgOk, err := toRepo.Exists("package.yaml")
+	if err != nil {
+		return managed.ExternalObservation{}, err
+	}
+
+	if clmOk && pkgOk {
+		e.log.Debug("Claim and Package found", "url", spec.ToRepo.Url)
+		e.rec.Event(cr, corev1.EventTypeWarning, reasonCannotCreate, "Claim and Package found")
 
 		cr.SetConditions(xpv1.Available())
+		cr.Status.AtProvider.DeploymentId = helpers.StringPtr(*spec.DeploymentId)
+
 		return managed.ExternalObservation{
 			ResourceExists:   true,
 			ResourceUpToDate: true,
 		}, nil
 	}
 
-	e.log.Debug("Target repo is empty", "url", toRepoUrl)
+	e.log.Debug("Target repo is empty", "url", spec.ToRepo.Url)
 
 	return managed.ExternalObservation{
 		ResourceExists:   false,
@@ -176,7 +187,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			FromRepo: fromRepo,
 			ToRepo:   toRepo,
 			FromPath: helpers.StringValue(spec.FromRepo.Path),
-			ToPath:   helpers.StringValue(spec.ToRepo.Path),
+			//ignored (decision: May, 30 2022) ToPath:   helpers.StringValue(spec.ToRepo.Path),
 		})
 		if err != nil {
 			return managed.ExternalCreation{}, err
@@ -220,22 +231,8 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
 		fmt.Sprintf("Target repo pushed branch main (deploymentId:%s)", deploymentId))
 
-	tagged, err := toRepo.CreateTag("0.1.0")
-	if err != nil {
-		return managed.ExternalCreation{}, fmt.Errorf("create tag error: %w", err)
-	}
-
-	if tagged {
-		err = toRepo.PushTags(e.cfg.ToRepoCreds)
-		if err != nil {
-			return managed.ExternalCreation{}, fmt.Errorf("push tag error: %w", err)
-		}
-	}
-
-	cr.Status.AtProvider.DeploymentId = helpers.StringPtr(deploymentId)
-	cr.Status.AtProvider.CommitId = helpers.StringPtr(commitId)
-
 	cr.Status.SetConditions(xpv1.Available())
+	cr.Status.AtProvider.DeploymentId = helpers.StringPtr(deploymentId)
 
 	return managed.ExternalCreation{}, nil
 }

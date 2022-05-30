@@ -43,9 +43,6 @@ type RepoParameters struct {
 type RepoObservation struct {
 	// DeploymentId: correlation identifier with UI
 	DeploymentId *string `json:"deploymentId,omitempty"`
-
-	// CommitId: commit id of the last copy.
-	CommitId *string `json:"commitId,omitempty"`
 }
 
 // A RepoSpec defines the desired state of a Repo.
@@ -66,7 +63,6 @@ type RepoStatus struct {
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
 // +kubebuilder:printcolumn:name="DEPLOYMENT_ID",type="string",JSONPath=".status.atProvider.deploymentId"
-// +kubebuilder:printcolumn:name="COMMIT_ID",type="string",JSONPath=".status.atProvider.commitId"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,krateo,git}
