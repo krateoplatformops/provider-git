@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 
+	"github.com/cbroglie/mustache"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -180,28 +183,32 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 	e.log.Debug("Target repo on branch main")
 
+	co := &repo.CopyOpts{
+		FromRepo: fromRepo,
+		ToRepo:   toRepo,
+	}
+
 	// If fromPath is not specified DON'T COPY!
 	fromPath := helpers.StringValue(spec.FromRepo.Path)
 	if len(fromPath) > 0 {
-		err = repo.Copy(repo.CopyOpts{
-			FromRepo: fromRepo,
-			ToRepo:   toRepo,
-			FromPath: helpers.StringValue(spec.FromRepo.Path),
-			//ignored (decision: May, 30 2022) ToPath:   helpers.StringValue(spec.ToRepo.Path),
-		})
+		toPath := helpers.StringValue(spec.ToRepo.Path)
+
+		setupRenderer(co)
+
+		err = repo.Copy(co, fromPath, toPath)
 		if err != nil {
 			return managed.ExternalCreation{}, err
 		}
 	}
 
 	// write claim data
-	err = repo.CopyBytes(toRepo.FS(), deployment.Claim, "claim.yaml")
+	err = co.WriteBytes(deployment.Claim, "claim.yaml")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 
 	// write package data
-	err = repo.CopyBytes(toRepo.FS(), deployment.Package, "package.yaml")
+	err = co.WriteBytes(deployment.Package, "package.yaml")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
@@ -243,4 +250,21 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 
 func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return nil // noop
+}
+
+func setupRenderer(cfg *repo.CopyOpts) {
+	values := map[string]any{} // TBD Load from configMap
+
+	cfg.RenderFunc = func(in io.Reader, out io.Writer) error {
+		bin, err := ioutil.ReadAll(in)
+		if err != nil {
+			return err
+		}
+		tmpl, err := mustache.ParseString(string(bin))
+		if err != nil {
+			return err
+		}
+
+		return tmpl.FRender(out, values)
+	}
 }

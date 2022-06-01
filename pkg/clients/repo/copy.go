@@ -7,34 +7,30 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-git/go-billy/v5"
 	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 )
 
 type CopyOpts struct {
-	FromRepo *git.Repo
-	ToRepo   *git.Repo
-	FromPath string
-	ToPath   string
+	FromRepo   *git.Repo
+	ToRepo     *git.Repo
+	RenderFunc func(in io.Reader, out io.Writer) error
 }
 
 // Copy files from one in memory filesystem to another in memory filesystem
-func Copy(cfg CopyOpts) (err error) {
-	fromPath := cfg.FromPath
+func Copy(cfg *CopyOpts, fromPath, toPath string) (err error) {
 	if len(fromPath) == 0 {
 		fromPath = "/"
 	}
 
-	toPath := cfg.ToPath
 	if len(toPath) == 0 {
 		toPath = "/"
 	}
 
-	return CopyDir(cfg.FromRepo.FS(), cfg.ToRepo.FS(), fromPath, toPath)
+	return cfg.CopyDir(fromPath, toPath)
 }
 
-func CopyBytes(toFS billy.Filesystem, src []byte, dstfn string) (err error) {
-	out, err := toFS.Create(dstfn)
+func (cfg *CopyOpts) WriteBytes(src []byte, dstfn string) (err error) {
+	out, err := cfg.ToRepo.FS().Create(dstfn)
 	if err != nil {
 		return err
 	}
@@ -49,13 +45,27 @@ func CopyBytes(toFS billy.Filesystem, src []byte, dstfn string) (err error) {
 	return
 }
 
-func CopyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
+func (cfg *CopyOpts) CopyFile(src, dst string, render bool) (err error) {
+	fromFS, toFS := cfg.FromRepo.FS(), cfg.ToRepo.FS()
+
 	in, err := fromFS.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
+	/*
+		bin, err := ioutil.ReadAll(in)
+		if err != nil {
+			return err
+		}
+		tmpl, err := mustache.ParseString(string(bin))
+		if err != nil {
+			return err
+		}
+
+		tmpl.FRender(out, values)
+	*/
 	out, err := toFS.Create(dst)
 	if err != nil {
 		return err
@@ -67,14 +77,20 @@ func CopyFile(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 		}
 	}()
 
-	_, err = io.Copy(out, in)
-	return
+	if !render || cfg.RenderFunc == nil {
+		_, err = io.Copy(out, in)
+		return
+	}
+
+	return cfg.RenderFunc(in, out)
 }
 
 // CopyDir recursively copies a directory tree, attempting to preserve permissions.
 // Source directory must exist, destination directory must *not* exist.
 // Symlinks are ignored and skipped.
-func CopyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
+func (cfg *CopyOpts) CopyDir(src, dst string) (err error) {
+	fromFS, toFS := cfg.FromRepo.FS(), cfg.ToRepo.FS()
+
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
@@ -85,11 +101,6 @@ func CopyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 	if !si.IsDir() {
 		return fmt.Errorf("source is not a directory")
 	}
-
-	//_, err = toFS.Stat(dst)
-	//if err != nil && !os.IsNotExist(err) {
-	//	return
-	//}
 
 	err = toFS.MkdirAll(dst, si.Mode())
 	if err != nil {
@@ -106,7 +117,7 @@ func CopyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			err = CopyDir(fromFS, toFS, srcPath, dstPath)
+			err = cfg.CopyDir(srcPath, dstPath)
 			if err != nil {
 				return
 			}
@@ -116,7 +127,7 @@ func CopyDir(fromFS, toFS billy.Filesystem, src, dst string) (err error) {
 				continue
 			}
 
-			err = CopyFile(fromFS, toFS, srcPath, dstPath)
+			err = cfg.CopyFile(srcPath, dstPath, true)
 			if err != nil {
 				return
 			}
