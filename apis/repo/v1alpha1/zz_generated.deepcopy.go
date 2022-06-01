@@ -135,9 +135,9 @@ func (in *RepoParameters) DeepCopyInto(out *RepoParameters) {
 	}
 	in.FromRepo.DeepCopyInto(&out.FromRepo)
 	in.ToRepo.DeepCopyInto(&out.ToRepo)
-	if in.ConfigMapRef != nil {
-		in, out := &in.ConfigMapRef, &out.ConfigMapRef
-		*out = new(helpers.ConfigMapReference)
+	if in.ConfigMapKeyRef != nil {
+		in, out := &in.ConfigMapKeyRef, &out.ConfigMapKeyRef
+		*out = new(helpers.ConfigMapKeySelector)
 		**out = **in
 	}
 }

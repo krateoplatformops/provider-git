@@ -33,7 +33,7 @@ type RepoParameters struct {
 
 	// ConfigMapKeyRef: holds template values
 	// +optional
-	ConfigMapRef *helpers.ConfigMapReference `json:"configMapRef,omitempty"`
+	ConfigMapKeyRef *helpers.ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
 }
 
 type RepoObservation struct {

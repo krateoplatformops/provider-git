@@ -63,9 +63,12 @@ spec:
                 type: string
               forProvider:
                 properties:
-                  configMapRef:
+                  configMapKeyRef:
                     description: 'ConfigMapKeyRef: holds template values'
                     properties:
+                      key:
+                        description: The key to select.
+                        type: string
                       name:
                         description: Name of the configmap.
                         type: string
@@ -73,6 +76,7 @@ spec:
                         description: Namespace of the configmap.
                         type: string
                     required:
+                    - key
                     - name
                     - namespace
                     type: object

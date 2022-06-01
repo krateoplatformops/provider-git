@@ -10,5 +10,9 @@ spec:
       path: skeleton
     toRepo:
       url: https://github.com/krateoplatformops/del-1
+    configMapKeyRef:
+      name: renomy-app-values
+      namespace: default
+      key: json
   providerConfigRef:
     name: provider-git-config

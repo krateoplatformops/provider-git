@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -189,8 +190,9 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	// If fromPath is not specified DON'T COPY!
 	fromPath := helpers.StringValue(spec.FromRepo.Path)
 	if len(fromPath) > 0 {
+		values := e.loadValuesFromConfigMap(ctx, spec.ConfigMapKeyRef)
 		loadIgnoreFileEventually(co)
-		e.initRenderer(ctx, co, spec.ConfigMapRef)
+		createRenderFunc(co, values)
 
 		toPath := helpers.StringValue(spec.ToRepo.Path)
 		if len(toPath) == 0 {
@@ -254,13 +256,25 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return nil // noop
 }
 
-func (e *external) initRenderer(ctx context.Context, cfg *repo.CopyOpts, ref *helpers.ConfigMapReference) {
-	values, err := helpers.GetConfigMapData(ctx, e.kube, ref)
+func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.ConfigMapKeySelector) any {
+	var res any
+
+	js, err := helpers.GetConfigMapValue(ctx, e.kube, ref)
 	if err != nil {
 		e.log.Info(err.Error())
-		values = map[string]string{}
+		return nil
 	}
 
+	err = json.Unmarshal([]byte(js), &res)
+	if err != nil {
+		e.log.Info(err.Error())
+		return nil
+	}
+
+	return res
+}
+
+func createRenderFunc(cfg *repo.CopyOpts, values any) {
 	cfg.RenderFunc = func(in io.Reader, out io.Writer) error {
 		bin, err := ioutil.ReadAll(in)
 		if err != nil {

@@ -18,16 +18,24 @@ type ConfigMapReference struct {
 	Namespace string `json:"namespace"`
 }
 
-func GetConfigMapData(ctx context.Context, k client.Client, ref *ConfigMapReference) (map[string]string, error) {
+// A ConfigMapKeySelector is a reference to a configmap key in an arbitrary namespace.
+type ConfigMapKeySelector struct {
+	ConfigMapReference `json:",inline"`
+
+	// The key to select.
+	Key string `json:"key"`
+}
+
+func GetConfigMapValue(ctx context.Context, k client.Client, ref *ConfigMapKeySelector) (string, error) {
 	if ref == nil {
-		return nil, errors.New("no configmap referenced")
+		return "", errors.New("no configmap referenced")
 	}
 
 	cm := &corev1.ConfigMap{}
 	err := k.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, cm)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get %s configmap", ref.Name)
+		return "", errors.Wrapf(err, "cannot get %s configmap", ref.Name)
 	}
 
-	return cm.Data, nil
+	return string(cm.Data[ref.Key]), nil
 }
