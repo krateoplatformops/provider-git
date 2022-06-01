@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 
 	"github.com/krateoplatformops/provider-git/pkg/clients/git"
+	gi "github.com/sabhiram/go-gitignore"
 )
 
 type CopyOpts struct {
 	FromRepo   *git.Repo
 	ToRepo     *git.Repo
 	RenderFunc func(in io.Reader, out io.Writer) error
+	Ignore     *gi.GitIgnore
 }
 
 // Copy files from one in memory filesystem to another in memory filesystem
@@ -54,18 +56,6 @@ func (cfg *CopyOpts) CopyFile(src, dst string, render bool) (err error) {
 	}
 	defer in.Close()
 
-	/*
-		bin, err := ioutil.ReadAll(in)
-		if err != nil {
-			return err
-		}
-		tmpl, err := mustache.ParseString(string(bin))
-		if err != nil {
-			return err
-		}
-
-		tmpl.FRender(out, values)
-	*/
 	out, err := toFS.Create(dst)
 	if err != nil {
 		return err
@@ -127,12 +117,19 @@ func (cfg *CopyOpts) CopyDir(src, dst string) (err error) {
 				continue
 			}
 
-			err = cfg.CopyFile(srcPath, dstPath, true)
+			// ignore file eventually
+			var ignore bool
+			if cfg.Ignore != nil {
+				if cfg.Ignore.MatchesPath(srcPath) {
+					ignore = true
+				}
+			}
+
+			// do the copy
+			err = cfg.CopyFile(srcPath, dstPath, ignore)
 			if err != nil {
 				return
 			}
-
-			//fmt.Fprintf(os.Stderr, " copied: %s\n", entry)
 		}
 	}
 

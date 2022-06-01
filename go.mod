@@ -11,6 +11,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/pkg/errors v0.9.1
+	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0

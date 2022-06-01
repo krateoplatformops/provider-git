@@ -29,6 +29,8 @@ import (
 	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 	"github.com/krateoplatformops/provider-git/pkg/clients/repo"
 	"github.com/krateoplatformops/provider-git/pkg/helpers"
+
+	gi "github.com/sabhiram/go-gitignore"
 )
 
 const (
@@ -191,9 +193,13 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	// If fromPath is not specified DON'T COPY!
 	fromPath := helpers.StringValue(spec.FromRepo.Path)
 	if len(fromPath) > 0 {
-		toPath := helpers.StringValue(spec.ToRepo.Path)
-
+		loadIgnoreFileEventually(co)
 		setupRenderer(co)
+
+		toPath := helpers.StringValue(spec.ToRepo.Path)
+		if len(toPath) == 0 {
+			toPath = "/"
+		}
 
 		err = repo.Copy(co, fromPath, toPath)
 		if err != nil {
@@ -266,5 +272,12 @@ func setupRenderer(cfg *repo.CopyOpts) {
 		}
 
 		return tmpl.FRender(out, values)
+	}
+}
+
+func loadIgnoreFileEventually(cfg *repo.CopyOpts) {
+	ignore, err := gi.CompileIgnoreFile(".krateoignore")
+	if err == nil {
+		cfg.Ignore = ignore
 	}
 }
