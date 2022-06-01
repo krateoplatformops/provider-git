@@ -63,6 +63,19 @@ spec:
                 type: string
               forProvider:
                 properties:
+                  configMapRef:
+                    description: 'ConfigMapKeyRef: holds template values'
+                    properties:
+                      name:
+                        description: Name of the configmap.
+                        type: string
+                      namespace:
+                        description: Namespace of the configmap.
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
                   deploymentId:
                     description: 'DeploymentId: correlationId with UI'
                     type: string

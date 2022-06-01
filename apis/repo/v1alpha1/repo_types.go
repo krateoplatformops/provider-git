@@ -5,13 +5,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// RepoCredentials required to authenticate.
-type RepoCredentials struct {
-	// Source of the ReST API Token.
-	// +kubebuilder:validation:Enum=None;Secret;Environment
-	Source xpv1.CredentialsSource `json:"source"`
+// A ConfigMapReference is a reference to a configMap in an arbitrary namespace.
+type ConfigMapReference struct {
+	// Name of the configmap.
+	Name string `json:"name"`
 
-	xpv1.CommonCredentialSelectors `json:",inline"`
+	// Namespace of the configmap.
+	Namespace string `json:"namespace"`
 }
 
 type RepoOpts struct {
@@ -38,6 +38,10 @@ type RepoParameters struct {
 	// ToRepo: .
 	// +immutable
 	ToRepo RepoOpts `json:"toRepo"`
+
+	// ConfigMapKeyRef: holds template values
+	// +optional
+	ConfigMapRef *ConfigMapReference `json:"configMapRef,omitempty"`
 }
 
 type RepoObservation struct {
