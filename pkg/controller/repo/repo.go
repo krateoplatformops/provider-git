@@ -194,7 +194,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	fromPath := helpers.StringValue(spec.FromRepo.Path)
 	if len(fromPath) > 0 {
 		loadIgnoreFileEventually(co)
-		setupRenderer(co)
+		e.initRenderer(ctx, co, spec.ConfigMapRef)
 
 		toPath := helpers.StringValue(spec.ToRepo.Path)
 		if len(toPath) == 0 {
@@ -258,8 +258,12 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return nil // noop
 }
 
-func setupRenderer(cfg *repo.CopyOpts) {
-	values := map[string]any{} // TBD Load from configMap
+func (e *external) initRenderer(ctx context.Context, cfg *repo.CopyOpts, ref *helpers.ConfigMapReference) {
+	values, err := helpers.GetConfigMapData(ctx, e.kube, ref)
+	if err != nil {
+		e.log.Info(err.Error())
+		values = map[string]string{}
+	}
 
 	cfg.RenderFunc = func(in io.Reader, out io.Writer) error {
 		bin, err := ioutil.ReadAll(in)

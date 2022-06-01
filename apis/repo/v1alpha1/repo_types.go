@@ -2,17 +2,9 @@ package v1alpha1
 
 import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/krateoplatformops/provider-git/pkg/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// A ConfigMapReference is a reference to a configMap in an arbitrary namespace.
-type ConfigMapReference struct {
-	// Name of the configmap.
-	Name string `json:"name"`
-
-	// Namespace of the configmap.
-	Namespace string `json:"namespace"`
-}
 
 type RepoOpts struct {
 	// Url: the repository URL.
@@ -41,7 +33,7 @@ type RepoParameters struct {
 
 	// ConfigMapKeyRef: holds template values
 	// +optional
-	ConfigMapRef *ConfigMapReference `json:"configMapRef,omitempty"`
+	ConfigMapRef *helpers.ConfigMapReference `json:"configMapRef,omitempty"`
 }
 
 type RepoObservation struct {
