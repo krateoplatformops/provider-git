@@ -11,11 +11,9 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/client-go/util/workqueue"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -30,6 +28,8 @@ import (
 	"github.com/krateoplatformops/provider-git/pkg/clients/repo"
 	"github.com/krateoplatformops/provider-git/pkg/helpers"
 
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
+
 	gi "github.com/sabhiram/go-gitignore"
 )
 
@@ -41,16 +41,12 @@ const (
 )
 
 // Setup adds a controller that reconciles Token managed resources.
-func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := managed.ControllerName(repov1alpha1.RepoGroupKind)
 
-	opts := controller.Options{
-		RateLimiter: ratelimiter.NewDefaultManagedRateLimiter(rl),
-	}
+	log := o.Logger.WithValues("controller", name)
 
-	log := l.WithValues("controller", name)
-
-	rec := managed.NewReconciler(mgr,
+	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(repov1alpha1.RepoGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:     mgr.GetClient(),
@@ -62,9 +58,9 @@ func Setup(mgr ctrl.Manager, l logging.Logger, rl workqueue.RateLimiter) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		WithOptions(opts).
+		WithOptions(o.ForControllerRuntime()).
 		For(&repov1alpha1.Repo{}).
-		Complete(rec)
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 type connector struct {
