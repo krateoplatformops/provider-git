@@ -35,6 +35,8 @@ import (
 )
 
 const (
+	labDeploymentId = "deploymentId"
+
 	errNotRepo = "managed resource is not a repo custom resource"
 
 	reasonCannotCreate = "CannotCreateExternalResource"
@@ -128,7 +130,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		e.rec.Event(cr, corev1.EventTypeWarning, reasonCannotCreate, "Claim and Package found")
 
 		cr.SetConditions(xpv1.Available())
-		cr.Status.AtProvider.DeploymentId = helpers.StringPtr(*spec.DeploymentId)
+		cr.Status.AtProvider.DeploymentId = helpers.StringPtr(getDeploymentId(mg))
 
 		return managed.ExternalObservation{
 			ResourceExists:   true,
@@ -153,7 +155,8 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	cr.Status.SetConditions(xpv1.Creating())
 
 	spec := cr.Spec.ForProvider.DeepCopy()
-	deploymentId := helpers.StringValue(spec.DeploymentId)
+
+	deploymentId := getDeploymentId(mg)
 	deployment, err := deployment.Get(e.cfg.DeploymentServiceUrl, deploymentId)
 	if err != nil {
 		return managed.ExternalCreation{}, err
@@ -218,7 +221,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	e.log.Debug("Origin and target repo synchronized",
-		"deploymentId", spec.DeploymentId,
+		"deploymentId", deploymentId,
 		"fromUrl", spec.FromRepo.Url,
 		"toUrl", spec.ToRepo.Url,
 		"fromPath", helpers.StringValue(spec.FromRepo.Path),
@@ -294,4 +297,14 @@ func loadIgnoreFileEventually(cfg *repo.CopyOpts) {
 	if err == nil {
 		cfg.Ignore = ignore
 	}
+}
+
+func getDeploymentId(mg resource.Managed) string {
+	for k, v := range mg.GetLabels() {
+		if k == labDeploymentId {
+			return v
+		}
+	}
+
+	return ""
 }

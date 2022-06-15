@@ -19,10 +19,6 @@ type RepoOpts struct {
 }
 
 type RepoParameters struct {
-	// DeploymentId: correlationId with UI
-	// +optional
-	DeploymentId *string `json:"deploymentId"`
-
 	// FromRepo: .
 	// +immutable
 	FromRepo RepoOpts `json:"fromRepo"`

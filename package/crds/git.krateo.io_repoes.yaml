@@ -80,9 +80,6 @@ spec:
                     - name
                     - namespace
                     type: object
-                  deploymentId:
-                    description: 'DeploymentId: correlationId with UI'
-                    type: string
                   fromRepo:
                     description: 'FromRepo: .'
                     properties:
