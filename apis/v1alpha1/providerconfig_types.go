@@ -26,6 +26,10 @@ type ProviderConfigSpec struct {
 
 	// ToCredentials required to authenticate ReST API git server.
 	ToRepoCredentials *RepoCredentials `json:"toRepoCredentials,omitempty"`
+
+	// Insecure is useful with hand made SSL certs (default: false)
+	// +optional
+	Insecure *bool `json:"insecure,omitempty"`
 }
 
 // A ProviderConfigStatus reflects the observed state of a ProviderConfig.

@@ -37,8 +37,6 @@ func main() {
 		ctrl.SetLogger(zl)
 	}
 
-	os.Setenv("GIT_SSL_NO_VERIFY", "1")
-
 	log.Debug("Starting", "sync-period", syncPeriod.String())
 
 	cfg, err := ctrl.GetConfig()

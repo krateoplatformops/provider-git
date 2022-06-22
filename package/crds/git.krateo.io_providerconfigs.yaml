@@ -103,6 +103,10 @@ spec:
                 required:
                 - source
                 type: object
+              insecure:
+                description: 'Insecure is useful with hand made SSL certs (default:
+                  false)'
+                type: boolean
               toRepoCredentials:
                 description: ToCredentials required to authenticate ReST API git server.
                 properties:
