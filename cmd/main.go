@@ -20,7 +20,7 @@ import (
 func main() {
 	var (
 		app              = kingpin.New(filepath.Base(os.Args[0]), "Krateo Git Provider.").DefaultEnvars()
-		debug            = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
+		debug            = app.Flag("debug", "Run with debug logging.").Short('d').Default("true").Bool()
 		syncPeriod       = app.Flag("sync", "Controller manager sync period such as 300ms, 1.5h, or 2h45m").Short('s').Default("1h").Duration()
 		pollInterval     = app.Flag("poll", "How often individual resources will be checked for drift from the desired state").Default("3m").Duration()
 		maxReconcileRate = app.Flag("max-reconcile-rate", "The global maximum rate per second at which resources may checked for drift from the desired state.").Default("5").Int()
@@ -36,6 +36,8 @@ func main() {
 		// logger when we're running in debug mode.
 		ctrl.SetLogger(zl)
 	}
+
+	os.Setenv("GIT_SSL_NO_VERIFY", "1")
 
 	log.Debug("Starting", "sync-period", syncPeriod.String())
 
