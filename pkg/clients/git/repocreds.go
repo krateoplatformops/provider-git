@@ -7,6 +7,7 @@ type RepoCreds struct {
 	Password string
 }
 
+/*
 func (rc *RepoCreds) Credentials() *http.BasicAuth {
 	if len(rc.Password) == 0 {
 		return nil
@@ -19,5 +20,15 @@ func (rc *RepoCreds) Credentials() *http.BasicAuth {
 	return &http.BasicAuth{
 		Username: usr,
 		Password: rc.Password,
+	}
+}
+*/
+
+func (rc *RepoCreds) Credentials() *http.TokenAuth {
+	if len(rc.Password) == 0 {
+		return nil
+	}
+	return &http.TokenAuth{
+		Token: rc.Password,
 	}
 }
