@@ -2,9 +2,7 @@ package clients
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -14,9 +12,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	gitclient "github.com/go-git/go-git/v5/plumbing/transport/client"
-	httptransport "github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
 type Config struct {
@@ -69,16 +64,17 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 		return nil, errors.Wrapf(err, "retrieving to repo credentials")
 	}
 
-	if ret.Insecure {
-		transport := httptransport.NewClient(&http.Client{
-			Transport: &http.Transport{
-				Proxy:           http.ProxyFromEnvironment,
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		})
+	/*
+		if ret.Insecure {
+			transport := httptransport.NewClient(&http.Client{
+				Transport: &http.Transport{
+					Proxy:           http.ProxyFromEnvironment,
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				},
+			})
 
-		gitclient.InstallProtocol("https", transport)
-	}
+			gitclient.InstallProtocol("https", transport)
+		}*/
 
 	return ret, nil
 }

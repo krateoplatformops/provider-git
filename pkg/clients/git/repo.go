@@ -38,7 +38,7 @@ type Repo struct {
 	repo   *git.Repository
 }
 
-func Tags(repoUrl string, creds RepoCreds) ([]string, error) {
+func Tags(repoUrl string, creds RepoCreds, insecure bool) ([]string, error) {
 	// Create the remote with repository URL
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
@@ -46,7 +46,10 @@ func Tags(repoUrl string, creds RepoCreds) ([]string, error) {
 	})
 
 	// We can then use every Remote functions to retrieve wanted information
-	refs, err := rem.List(&git.ListOptions{Auth: creds.Credentials()})
+	refs, err := rem.List(&git.ListOptions{
+		Auth:            creds.Credentials(),
+		InsecureSkipTLS: insecure,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +65,7 @@ func Tags(repoUrl string, creds RepoCreds) ([]string, error) {
 	return tags, nil
 }
 
-func Clone(repoUrl string, creds RepoCreds) (*Repo, error) {
+func Clone(repoUrl string, creds RepoCreds, insecure bool) (*Repo, error) {
 	res := &Repo{
 		rawURL: repoUrl,
 		creds:  creds,
@@ -76,7 +79,8 @@ func Clone(repoUrl string, creds RepoCreds) (*Repo, error) {
 		RemoteName: "origin",
 		URL:        repoUrl,
 		//Depth: 1,
-		Auth: creds.Credentials(),
+		Auth:            creds.Credentials(),
+		InsecureSkipTLS: insecure,
 	})
 	if err != nil {
 		if errors.Is(err, transport.ErrRepositoryNotFound) {
@@ -171,12 +175,13 @@ func (s *Repo) Commit(path, msg string) (string, error) {
 	return hash.String(), nil
 }
 
-func (s *Repo) Push(downstream, branch string) error {
+func (s *Repo) Push(downstream, branch string, insecure bool) error {
 	//Push the code to the remote
 	if len(branch) == 0 {
 		return s.repo.Push(&git.PushOptions{
-			RemoteName: downstream,
-			Auth:       s.creds.Credentials(),
+			RemoteName:      downstream,
+			Auth:            s.creds.Credentials(),
+			InsecureSkipTLS: insecure,
 		})
 	}
 
@@ -209,16 +214,17 @@ func (s *Repo) Push(downstream, branch string) error {
 	}
 
 	return s.repo.Push(&git.PushOptions{
-		RemoteName: downstream,
-		Force:      true,
-		Auth:       s.creds.Credentials(),
+		RemoteName:      downstream,
+		Force:           true,
+		Auth:            s.creds.Credentials(),
+		InsecureSkipTLS: insecure,
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(refName + ":" + refName),
 		},
 	})
 }
 
-func Pull(s *Repo) error {
+func Pull(s *Repo, insecure bool) error {
 	// Get the working directory for the repository
 	wt, err := s.repo.Worktree()
 	if err != nil {
@@ -228,7 +234,8 @@ func Pull(s *Repo) error {
 	err = wt.Pull(&git.PullOptions{
 		RemoteName: "origin",
 		//Depth:      1,
-		Auth: s.creds.Credentials(),
+		Auth:            s.creds.Credentials(),
+		InsecureSkipTLS: insecure,
 	})
 
 	if err != nil {
@@ -300,14 +307,15 @@ func (s *Repo) CreateTag(tag string) (bool, error) {
 	return true, nil
 }
 
-func (s *Repo) PushTags(creds RepoCreds) error {
+func (s *Repo) PushTags(creds RepoCreds, insecure bool) error {
 	r := s.repo
 
 	opts := &git.PushOptions{
 		RemoteName: "origin",
 		//Progress:   os.Stdout,
-		RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
-		Auth:     creds.Credentials(),
+		RefSpecs:        []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+		Auth:            creds.Credentials(),
+		InsecureSkipTLS: insecure,
 	}
 	//Info("git push --tags")
 	err := r.Push(opts)
