@@ -23,14 +23,6 @@ $ helm install crossplane --namespace crossplane-system crossplane-stable/crossp
 Before installing the below manifest:
 
 - [replace `VERSION` with latest or your preferred provider version](./examples/provider.yaml)
-- since this repo is private, create a docker secret named `cr-token` with the docker credentials
-
-  ```sh
-  $ create secret docker-registry cr-token \
-	  --namespace crossplane-system --docker-server=ghcr.io \
-	  --docker-password=$(YOUR_GHCR_TOKEN) --docker-username=$(ORG_NAME) || true
-  ```
-
 
 ```sh
 $ kubectl apply -f ./examples/provider.yaml
