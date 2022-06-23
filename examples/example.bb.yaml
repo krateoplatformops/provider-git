@@ -1,18 +1,18 @@
 apiVersion: git.krateo.io/v1alpha1
 kind: Repo
 metadata:
-  name: provider-git-example-skeleton
+  name: provider-git-example-bitbucket
   labels:
     deploymentId: 626c03950944e84673f8b82b
 spec:
   forProvider:
     fromRepo:
-      url: https://github.com/krateoplatformops/renomy-app-template
+      url: http://10.99.99.37:7990/scm/jxp/from-repo.git
       path: skeleton
     toRepo:
-      url: https://github.com/krateoplatformops/del-1
+      url: http://10.99.99.37:7990/scm/jxp/to-repo.git
     configMapKeyRef:
-      name: renomy-app-values
+      name: sample-values
       namespace: default
       key: json
   providerConfigRef:

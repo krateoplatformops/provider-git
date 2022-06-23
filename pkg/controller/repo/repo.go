@@ -194,6 +194,12 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	fromPath := helpers.StringValue(spec.FromRepo.Path)
 	if len(fromPath) > 0 {
 		values := e.loadValuesFromConfigMap(ctx, spec.ConfigMapKeyRef)
+		e.log.Debug("Loaded values from config map",
+			"configMapName", spec.ConfigMapKeyRef.Name,
+			"configMapKey", spec.ConfigMapKeyRef.Key,
+			"values", values,
+		)
+
 		loadIgnoreFileEventually(co)
 		createRenderFunc(co, values)
 

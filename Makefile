@@ -113,6 +113,11 @@ install.provider: cr.secret ## Install this provider
 example.secret: ## Create the example secret
 	@$(KUBECTL) create secret generic github-token --from-literal=token=$(SAMPLE_TOKEN) || true
 
+.PHONY: bitbucket.demo
+bitbucket.demo: ## Run the demo on bitbucket server
+	@$(KUBECTL) create secret generic bitbucket-secret --from-literal=token=$(BITBUCKET_SECRET) || true
+	@$(KUBECTL) apply -f examples/values.bb.yaml
+
 .PHONY: help
 help: ## print this help
 	@grep -E '^[a-zA-Z\._-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
