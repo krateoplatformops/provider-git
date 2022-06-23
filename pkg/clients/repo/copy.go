@@ -18,19 +18,6 @@ type CopyOpts struct {
 	Ignore     *gi.GitIgnore
 }
 
-// Copy files from one in memory filesystem to another in memory filesystem
-func Copy(cfg *CopyOpts, fromPath, toPath string) (err error) {
-	if len(fromPath) == 0 {
-		fromPath = "/"
-	}
-
-	if len(toPath) == 0 {
-		toPath = "/"
-	}
-
-	return cfg.CopyDir(fromPath, toPath)
-}
-
 func (cfg *CopyOpts) WriteBytes(src []byte, dstfn string) (err error) {
 	out, err := cfg.ToRepo.FS().Create(dstfn)
 	if err != nil {
@@ -79,6 +66,14 @@ func (cfg *CopyOpts) CopyFile(src, dst string, render bool) (err error) {
 // Source directory must exist, destination directory must *not* exist.
 // Symlinks are ignored and skipped.
 func (cfg *CopyOpts) CopyDir(src, dst string) (err error) {
+	if len(src) == 0 {
+		src = "/"
+	}
+
+	if len(dst) == 0 {
+		dst = "/"
+	}
+
 	fromFS, toFS := cfg.FromRepo.FS(), cfg.ToRepo.FS()
 
 	src = filepath.Clean(src)

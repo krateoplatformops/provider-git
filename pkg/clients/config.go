@@ -7,7 +7,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/krateoplatformops/provider-git/apis/v1alpha1"
-	"github.com/krateoplatformops/provider-git/pkg/clients/git"
 	"github.com/krateoplatformops/provider-git/pkg/helpers"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -17,8 +16,8 @@ import (
 type Config struct {
 	Insecure             bool
 	DeploymentServiceUrl string
-	FromRepoCreds        git.RepoCreds
-	ToRepoCreds          git.RepoCreds
+	FromRepoToken        string
+	ToRepoToken          string
 }
 
 // GetConfig constructs a RepoCreds pair that can be used to authenticate to the git provider.
@@ -54,14 +53,14 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 		DeploymentServiceUrl: pc.Spec.DeploymentServiceUrl,
 	}
 
-	ret.FromRepoCreds, err = getFromRepoCredentials(ctx, k, pc)
+	ret.FromRepoToken, err = getFromRepoCredentials(ctx, k, pc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "retrieving from repo credentials")
+		return nil, errors.Wrapf(err, "retrieving from repo access token")
 	}
 
-	ret.ToRepoCreds, err = getToRepoCredentials(ctx, k, pc)
+	ret.ToRepoToken, err = getToRepoCredentials(ctx, k, pc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "retrieving to repo credentials")
+		return nil, errors.Wrapf(err, "retrieving to repo access token")
 	}
 
 	/*
@@ -80,47 +79,47 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 }
 
 // getFromRepoCredentials returns the from repo credentials stored in a secret.
-func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (git.RepoCreds, error) {
+func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (string, error) {
 	if pc.Spec.FromRepoCredentials == nil {
-		return git.RepoCreds{}, nil
+		return "", nil
 	}
 
 	if s := pc.Spec.FromRepoCredentials.Source; s != xpv1.CredentialsSourceSecret {
-		return git.RepoCreds{}, fmt.Errorf("credentials source %s is not currently supported", s)
+		return "", fmt.Errorf("credentials source %s is not currently supported", s)
 	}
 
 	csr := pc.Spec.FromRepoCredentials.SecretRef
 	if csr == nil {
-		return git.RepoCreds{}, fmt.Errorf("no credentials secret referenced")
+		return "", fmt.Errorf("no credentials secret referenced")
 	}
 
 	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
 	if err != nil {
-		return git.RepoCreds{}, err
+		return "", err
 	}
 
-	return git.RepoCreds{Password: token}, nil
+	return token, nil
 }
 
 // getToRepoCredentials returns the to repo credentials stored in a secret.
-func getToRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (git.RepoCreds, error) {
+func getToRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (string, error) {
 	if pc.Spec.ToRepoCredentials == nil {
-		return git.RepoCreds{}, nil
+		return "", nil
 	}
 
 	if s := pc.Spec.ToRepoCredentials.Source; s != xpv1.CredentialsSourceSecret {
-		return git.RepoCreds{}, fmt.Errorf("credentials source %s is not currently supported", s)
+		return "", fmt.Errorf("credentials source %s is not currently supported", s)
 	}
 
 	csr := pc.Spec.ToRepoCredentials.SecretRef
 	if csr == nil {
-		return git.RepoCreds{}, fmt.Errorf("no credentials secret referenced")
+		return "", fmt.Errorf("no credentials secret referenced")
 	}
 
 	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
 	if err != nil {
-		return git.RepoCreds{}, err
+		return "", err
 	}
 
-	return git.RepoCreds{Password: token}, nil
+	return token, nil
 }

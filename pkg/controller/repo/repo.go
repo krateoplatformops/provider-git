@@ -108,7 +108,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoToken, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -165,14 +165,14 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
 		fmt.Sprintf("Claim and Package info fetched (deploymentId: %s)", deploymentId))
 
-	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoToken, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Target repo cloned")
 
-	fromRepo, err := git.Clone(spec.FromRepo.Url, e.cfg.FromRepoCreds, e.cfg.Insecure)
+	fromRepo, err := git.Clone(spec.FromRepo.Url, e.cfg.FromRepoToken, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
@@ -202,7 +202,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			toPath = "/"
 		}
 
-		err = repo.Copy(co, fromPath, toPath)
+		err = co.CopyDir(fromPath, toPath)
 		if err != nil {
 			return managed.ExternalCreation{}, err
 		}
@@ -259,8 +259,8 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return nil // noop
 }
 
-func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.ConfigMapKeySelector) any {
-	var res any
+func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.ConfigMapKeySelector) map[string]interface{} {
+	var res map[string]interface{}
 
 	js, err := helpers.GetConfigMapValue(ctx, e.kube, ref)
 	if err != nil {
@@ -277,7 +277,7 @@ func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.Con
 	return res
 }
 
-func createRenderFunc(cfg *repo.CopyOpts, values any) {
+func createRenderFunc(cfg *repo.CopyOpts, values interface{}) {
 	cfg.RenderFunc = func(in io.Reader, out io.Writer) error {
 		bin, err := ioutil.ReadAll(in)
 		if err != nil {

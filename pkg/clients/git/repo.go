@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
@@ -31,14 +32,14 @@ var (
 // Repo is an in-memory git repository
 type Repo struct {
 	rawURL string
-	creds  RepoCreds
+	token  string
 
 	storer *memory.Storage
 	fs     billy.Filesystem
 	repo   *git.Repository
 }
 
-func Tags(repoUrl string, creds RepoCreds, insecure bool) ([]string, error) {
+func Tags(repoUrl string, token string, insecure bool) ([]string, error) {
 	// Create the remote with repository URL
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
@@ -47,7 +48,9 @@ func Tags(repoUrl string, creds RepoCreds, insecure bool) ([]string, error) {
 
 	// We can then use every Remote functions to retrieve wanted information
 	refs, err := rem.List(&git.ListOptions{
-		Auth:            creds.Credentials(),
+		Auth: &http.TokenAuth{
+			Token: token,
+		},
 		InsecureSkipTLS: insecure,
 	})
 	if err != nil {
@@ -65,10 +68,10 @@ func Tags(repoUrl string, creds RepoCreds, insecure bool) ([]string, error) {
 	return tags, nil
 }
 
-func Clone(repoUrl string, creds RepoCreds, insecure bool) (*Repo, error) {
+func Clone(repoUrl string, token string, insecure bool) (*Repo, error) {
 	res := &Repo{
 		rawURL: repoUrl,
-		creds:  creds,
+		token:  token,
 		storer: memory.NewStorage(),
 		fs:     memfs.New(),
 	}
@@ -78,8 +81,9 @@ func Clone(repoUrl string, creds RepoCreds, insecure bool) (*Repo, error) {
 	res.repo, err = git.Clone(res.storer, res.fs, &git.CloneOptions{
 		RemoteName: "origin",
 		URL:        repoUrl,
-		//Depth: 1,
-		Auth:            creds.Credentials(),
+		Auth: &http.TokenAuth{
+			Token: token,
+		},
 		InsecureSkipTLS: insecure,
 	})
 	if err != nil {
@@ -179,8 +183,10 @@ func (s *Repo) Push(downstream, branch string, insecure bool) error {
 	//Push the code to the remote
 	if len(branch) == 0 {
 		return s.repo.Push(&git.PushOptions{
-			RemoteName:      downstream,
-			Auth:            s.creds.Credentials(),
+			RemoteName: downstream,
+			Auth: &http.TokenAuth{
+				Token: s.token,
+			},
 			InsecureSkipTLS: insecure,
 		})
 	}
@@ -214,9 +220,11 @@ func (s *Repo) Push(downstream, branch string, insecure bool) error {
 	}
 
 	return s.repo.Push(&git.PushOptions{
-		RemoteName:      downstream,
-		Force:           true,
-		Auth:            s.creds.Credentials(),
+		RemoteName: downstream,
+		Force:      true,
+		Auth: &http.TokenAuth{
+			Token: s.token,
+		},
 		InsecureSkipTLS: insecure,
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(refName + ":" + refName),
@@ -233,8 +241,9 @@ func Pull(s *Repo, insecure bool) error {
 
 	err = wt.Pull(&git.PullOptions{
 		RemoteName: "origin",
-		//Depth:      1,
-		Auth:            s.creds.Credentials(),
+		Auth: &http.TokenAuth{
+			Token: s.token,
+		},
 		InsecureSkipTLS: insecure,
 	})
 
@@ -307,14 +316,16 @@ func (s *Repo) CreateTag(tag string) (bool, error) {
 	return true, nil
 }
 
-func (s *Repo) PushTags(creds RepoCreds, insecure bool) error {
+func (s *Repo) PushTags(token string, insecure bool) error {
 	r := s.repo
 
 	opts := &git.PushOptions{
 		RemoteName: "origin",
 		//Progress:   os.Stdout,
-		RefSpecs:        []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
-		Auth:            creds.Credentials(),
+		RefSpecs: []config.RefSpec{config.RefSpec("refs/tags/*:refs/tags/*")},
+		Auth: &http.TokenAuth{
+			Token: token,
+		},
 		InsecureSkipTLS: insecure,
 	}
 	//Info("git push --tags")
