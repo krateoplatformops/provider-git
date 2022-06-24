@@ -34,7 +34,7 @@ func (cfg *CopyOpts) WriteBytes(src []byte, dstfn string) (err error) {
 	return
 }
 
-func (cfg *CopyOpts) CopyFile(src, dst string, render bool) (err error) {
+func (cfg *CopyOpts) CopyFile(src, dst string, doNotRender bool) (err error) {
 	fromFS, toFS := cfg.FromRepo.FS(), cfg.ToRepo.FS()
 
 	in, err := fromFS.Open(src)
@@ -54,9 +54,9 @@ func (cfg *CopyOpts) CopyFile(src, dst string, render bool) (err error) {
 		}
 	}()
 
-	if !render || cfg.RenderFunc == nil {
+	if doNotRender || cfg.RenderFunc == nil {
 		_, err = io.Copy(out, in)
-		return
+		return err
 	}
 
 	return cfg.RenderFunc(in, out)
@@ -113,15 +113,15 @@ func (cfg *CopyOpts) CopyDir(src, dst string) (err error) {
 			}
 
 			// ignore file eventually
-			var ignore bool
+			var doNotRender bool
 			if cfg.Ignore != nil {
 				if cfg.Ignore.MatchesPath(srcPath) {
-					ignore = true
+					doNotRender = true
 				}
 			}
 
 			// do the copy
-			err = cfg.CopyFile(srcPath, dstPath, ignore)
+			err = cfg.CopyFile(srcPath, dstPath, doNotRender)
 			if err != nil {
 				return
 			}

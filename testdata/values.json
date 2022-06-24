@@ -1,0 +1,12 @@
+{
+    "name":"test02",
+    "description":"test",
+    "provider":"bitbucket",
+    "projectName":"JXP",
+    "repositoryName":"test02",
+    "owner":"ee78829",
+    "domain":"git-qa.ghb.intranet.unicreditgroup.eu",
+    "schema":"https",
+    "apiUrl":"https://git-qa.ghb.intranet.unicreditgroup.eu",
+    "deploymentId":"62b306c8b3a02d6d674a33d4"
+  }

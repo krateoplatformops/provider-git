@@ -37,7 +37,8 @@ import (
 const (
 	labDeploymentId = "deploymentId"
 
-	errNotRepo = "managed resource is not a repo custom resource"
+	errNotRepo                  = "managed resource is not a repo custom resource"
+	errMissingDeploymentIdLabel = "managed resource is missing 'deploymentId' label"
 
 	reasonCannotCreate = "CannotCreateExternalResource"
 	reasonCreated      = "CreatedExternalResource"
@@ -106,6 +107,11 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, errors.New(errNotRepo)
 	}
 
+	deploymentID := getDeploymentId(mg)
+	if len(deploymentID) == 0 {
+		return managed.ExternalObservation{}, errors.New(errMissingDeploymentIdLabel)
+	}
+
 	spec := cr.Spec.ForProvider.DeepCopy()
 
 	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoToken, e.cfg.Insecure)
@@ -159,8 +165,10 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	deploymentId := getDeploymentId(mg)
 	deployment, err := deployment.Get(e.cfg.DeploymentServiceUrl, deploymentId)
 	if err != nil {
-		return managed.ExternalCreation{}, err
+		return managed.ExternalCreation{},
+			fmt.Errorf("fetching deployment (deploymentId:%s): %w", deploymentId, err)
 	}
+
 	e.log.Debug("Claim and Package info fetched", "deploymentId", deploymentId)
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
 		fmt.Sprintf("Claim and Package info fetched (deploymentId: %s)", deploymentId))
@@ -276,7 +284,7 @@ func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.Con
 
 	err = json.Unmarshal([]byte(js), &res)
 	if err != nil {
-		e.log.Info(err.Error(), "json", js)
+		e.log.Debug(err.Error(), "json", js)
 		return nil
 	}
 
