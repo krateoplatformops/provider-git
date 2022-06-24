@@ -276,7 +276,7 @@ func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.Con
 
 	err = json.Unmarshal([]byte(js), &res)
 	if err != nil {
-		e.log.Info(err.Error())
+		e.log.Info(err.Error(), "json", js)
 		return nil
 	}
 
