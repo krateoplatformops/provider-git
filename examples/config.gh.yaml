@@ -1,0 +1,18 @@
+apiVersion: git.krateo.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: provider-git-config-gh
+spec:
+  deploymentServiceUrl: http://deployment.krateoplatformops.io/
+  fromRepoCredentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: github.com-secret
+      key: token
+  toRepoCredentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: github.com-secret
+      key: token

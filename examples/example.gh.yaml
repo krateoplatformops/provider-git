@@ -1,0 +1,14 @@
+apiVersion: git.krateo.io/v1alpha1
+kind: Repo
+metadata:
+  name: provider-git-example-github
+  labels:
+    deploymentId: 62bdb86c502c2e33eb46a315
+spec:
+  forProvider:
+    fromRepo:
+      url: https://github.com/krateoplatformops/krateo-template-awsstack.git
+    toRepo:
+      url: https://github.com/krateoplatformops/awsstack-1.git
+  providerConfigRef:
+    name: provider-git-config-gh

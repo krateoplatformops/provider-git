@@ -32,14 +32,13 @@ var (
 // Repo is an in-memory git repository
 type Repo struct {
 	rawURL string
-	token  string
-
+	auth   transport.AuthMethod
 	storer *memory.Storage
 	fs     billy.Filesystem
 	repo   *git.Repository
 }
 
-func Tags(repoUrl string, token string, insecure bool) ([]string, error) {
+func Tags(repoUrl string, auth transport.AuthMethod, insecure bool) ([]string, error) {
 	// Create the remote with repository URL
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
@@ -48,9 +47,7 @@ func Tags(repoUrl string, token string, insecure bool) ([]string, error) {
 
 	// We can then use every Remote functions to retrieve wanted information
 	refs, err := rem.List(&git.ListOptions{
-		Auth: &http.TokenAuth{
-			Token: token,
-		},
+		Auth:            auth,
 		InsecureSkipTLS: insecure,
 	})
 	if err != nil {
@@ -68,10 +65,10 @@ func Tags(repoUrl string, token string, insecure bool) ([]string, error) {
 	return tags, nil
 }
 
-func Clone(repoUrl string, token string, insecure bool) (*Repo, error) {
+func Clone(repoUrl string, auth transport.AuthMethod, insecure bool) (*Repo, error) {
 	res := &Repo{
 		rawURL: repoUrl,
-		token:  token,
+		auth:   auth,
 		storer: memory.NewStorage(),
 		fs:     memfs.New(),
 	}
@@ -79,11 +76,9 @@ func Clone(repoUrl string, token string, insecure bool) (*Repo, error) {
 	// Clone the given repository to the given directory
 	var err error
 	res.repo, err = git.Clone(res.storer, res.fs, &git.CloneOptions{
-		RemoteName: "origin",
-		URL:        repoUrl,
-		Auth: &http.TokenAuth{
-			Token: token,
-		},
+		RemoteName:      "origin",
+		URL:             repoUrl,
+		Auth:            auth,
 		InsecureSkipTLS: insecure,
 	})
 	if err != nil {
@@ -183,10 +178,8 @@ func (s *Repo) Push(downstream, branch string, insecure bool) error {
 	//Push the code to the remote
 	if len(branch) == 0 {
 		return s.repo.Push(&git.PushOptions{
-			RemoteName: downstream,
-			Auth: &http.TokenAuth{
-				Token: s.token,
-			},
+			RemoteName:      downstream,
+			Auth:            s.auth,
 			InsecureSkipTLS: insecure,
 		})
 	}
@@ -220,11 +213,9 @@ func (s *Repo) Push(downstream, branch string, insecure bool) error {
 	}
 
 	return s.repo.Push(&git.PushOptions{
-		RemoteName: downstream,
-		Force:      true,
-		Auth: &http.TokenAuth{
-			Token: s.token,
-		},
+		RemoteName:      downstream,
+		Force:           true,
+		Auth:            s.auth,
 		InsecureSkipTLS: insecure,
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(refName + ":" + refName),
@@ -240,10 +231,8 @@ func Pull(s *Repo, insecure bool) error {
 	}
 
 	err = wt.Pull(&git.PullOptions{
-		RemoteName: "origin",
-		Auth: &http.TokenAuth{
-			Token: s.token,
-		},
+		RemoteName:      "origin",
+		Auth:            s.auth,
 		InsecureSkipTLS: insecure,
 	})
 

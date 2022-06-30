@@ -13,6 +13,10 @@ type RepoCredentials struct {
 	Source xpv1.CredentialsSource `json:"source"`
 
 	xpv1.CommonCredentialSelectors `json:",inline"`
+
+	// AuthMethod defines the authentication mode. One of 'basic' or 'bearer'
+	// +optional
+	AuthMethod *string `json:"authMethod,omitempty"`
 }
 
 // A ProviderConfigSpec defines the desired state of a ProviderConfig.

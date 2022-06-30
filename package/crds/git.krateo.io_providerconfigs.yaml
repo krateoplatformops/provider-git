@@ -55,6 +55,10 @@ spec:
                 description: FromRepoCredentials required to authenticate ReST API
                   git server.
                 properties:
+                  authMethod:
+                    description: AuthMethod defines the authentication mode. One of
+                      'basic' or 'bearer'
+                    type: string
                   env:
                     description: Env is a reference to an environment variable that
                       contains credentials that must be used to connect to the provider.
@@ -110,6 +114,10 @@ spec:
               toRepoCredentials:
                 description: ToCredentials required to authenticate ReST API git server.
                 properties:
+                  authMethod:
+                    description: AuthMethod defines the authentication mode. One of
+                      'basic' or 'bearer'
+                    type: string
                   env:
                     description: Env is a reference to an environment variable that
                       contains credentials that must be used to connect to the provider.

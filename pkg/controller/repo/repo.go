@@ -114,7 +114,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	spec := cr.Spec.ForProvider.DeepCopy()
 
-	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoToken, e.cfg.Insecure)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -173,14 +173,14 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated,
 		fmt.Sprintf("Claim and Package info fetched (deploymentId: %s)", deploymentId))
 
-	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoToken, e.cfg.Insecure)
+	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
 	e.rec.Event(cr, corev1.EventTypeNormal, reasonCreated, "Target repo cloned")
 
-	fromRepo, err := git.Clone(spec.FromRepo.Url, e.cfg.FromRepoToken, e.cfg.Insecure)
+	fromRepo, err := git.Clone(spec.FromRepo.Url, e.cfg.FromRepoCreds, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}

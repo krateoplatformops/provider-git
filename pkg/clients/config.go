@@ -3,9 +3,12 @@ package clients
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/krateoplatformops/provider-git/apis/v1alpha1"
 	"github.com/krateoplatformops/provider-git/pkg/helpers"
 	"github.com/pkg/errors"
@@ -16,8 +19,8 @@ import (
 type Config struct {
 	Insecure             bool
 	DeploymentServiceUrl string
-	FromRepoToken        string
-	ToRepoToken          string
+	FromRepoCreds        transport.AuthMethod
+	ToRepoCreds          transport.AuthMethod
 }
 
 // GetConfig constructs a RepoCreds pair that can be used to authenticate to the git provider.
@@ -53,73 +56,81 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 		DeploymentServiceUrl: pc.Spec.DeploymentServiceUrl,
 	}
 
-	ret.FromRepoToken, err = getFromRepoCredentials(ctx, k, pc)
+	ret.FromRepoCreds, err = getFromRepoCredentials(ctx, k, pc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "retrieving from repo access token")
+		return nil, errors.Wrapf(err, "retrieving from repo credentials")
 	}
 
-	ret.ToRepoToken, err = getToRepoCredentials(ctx, k, pc)
+	ret.ToRepoCreds, err = getToRepoCredentials(ctx, k, pc)
 	if err != nil {
-		return nil, errors.Wrapf(err, "retrieving to repo access token")
+		return nil, errors.Wrapf(err, "retrieving to repo credentials")
 	}
-
-	/*
-		if ret.Insecure {
-			transport := httptransport.NewClient(&http.Client{
-				Transport: &http.Transport{
-					Proxy:           http.ProxyFromEnvironment,
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				},
-			})
-
-			gitclient.InstallProtocol("https", transport)
-		}*/
 
 	return ret, nil
 }
 
 // getFromRepoCredentials returns the from repo credentials stored in a secret.
-func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (string, error) {
+func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (transport.AuthMethod, error) {
 	if pc.Spec.FromRepoCredentials == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	if s := pc.Spec.FromRepoCredentials.Source; s != xpv1.CredentialsSourceSecret {
-		return "", fmt.Errorf("credentials source %s is not currently supported", s)
+		return nil, fmt.Errorf("credentials source %s is not currently supported", s)
 	}
 
 	csr := pc.Spec.FromRepoCredentials.SecretRef
 	if csr == nil {
-		return "", fmt.Errorf("no credentials secret referenced")
+		return nil, fmt.Errorf("no credentials secret referenced")
 	}
 
+	authMethod := helpers.StringValue(pc.Spec.FromRepoCredentials.AuthMethod)
 	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return token, nil
+	if strings.EqualFold(authMethod, "bearer") {
+		return &http.TokenAuth{
+			Token: token,
+		}, nil
+	}
+
+	return &http.BasicAuth{
+		Username: "abc123",
+		Password: token,
+	}, nil
 }
 
 // getToRepoCredentials returns the to repo credentials stored in a secret.
-func getToRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (string, error) {
+func getToRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.ProviderConfig) (transport.AuthMethod, error) {
 	if pc.Spec.ToRepoCredentials == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	if s := pc.Spec.ToRepoCredentials.Source; s != xpv1.CredentialsSourceSecret {
-		return "", fmt.Errorf("credentials source %s is not currently supported", s)
+		return nil, fmt.Errorf("credentials source %s is not currently supported", s)
 	}
 
 	csr := pc.Spec.ToRepoCredentials.SecretRef
 	if csr == nil {
-		return "", fmt.Errorf("no credentials secret referenced")
+		return nil, fmt.Errorf("no credentials secret referenced")
 	}
 
+	authMethod := helpers.StringValue(pc.Spec.FromRepoCredentials.AuthMethod)
 	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return token, nil
+	if strings.EqualFold(authMethod, "bearer") {
+		return &http.TokenAuth{
+			Token: token,
+		}, nil
+	}
+
+	return &http.BasicAuth{
+		Username: "abc123",
+		Password: token,
+	}, nil
 }
