@@ -66,9 +66,6 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 		return nil, errors.Wrapf(err, "retrieving to repo credentials")
 	}
 
-	fmt.Printf("\nfrom: %+v\n\n", ret.FromRepoCreds)
-	fmt.Printf("\nfrom: %+v\n\n", ret.ToRepoCreds)
-
 	return ret, nil
 }
 
