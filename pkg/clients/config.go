@@ -66,6 +66,9 @@ func useProviderConfig(ctx context.Context, k client.Client, mg resource.Managed
 		return nil, errors.Wrapf(err, "retrieving to repo credentials")
 	}
 
+	fmt.Printf("\nfrom: %+v\n\n", ret.FromRepoCreds)
+	fmt.Printf("\nfrom: %+v\n\n", ret.ToRepoCreds)
+
 	return ret, nil
 }
 
@@ -90,6 +93,7 @@ func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.P
 		return nil, err
 	}
 
+	fmt.Printf("authMethod: %s\n", authMethod)
 	if strings.EqualFold(authMethod, "bearer") {
 		return &http.TokenAuth{
 			Token: token,
@@ -97,7 +101,7 @@ func getFromRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.P
 	}
 
 	return &http.BasicAuth{
-		Username: "abc123",
+		Username: "krateoctl",
 		Password: token,
 	}, nil
 }
@@ -117,7 +121,7 @@ func getToRepoCredentials(ctx context.Context, k client.Client, pc *v1alpha1.Pro
 		return nil, fmt.Errorf("no credentials secret referenced")
 	}
 
-	authMethod := helpers.StringValue(pc.Spec.FromRepoCredentials.AuthMethod)
+	authMethod := helpers.StringValue(pc.Spec.ToRepoCredentials.AuthMethod)
 	token, err := helpers.GetSecret(ctx, k, csr.DeepCopy())
 	if err != nil {
 		return nil, err

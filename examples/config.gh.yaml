@@ -5,12 +5,14 @@ metadata:
 spec:
   deploymentServiceUrl: http://deployment.krateoplatformops.io/
   fromRepoCredentials:
+    authMethod: basic
     source: Secret
     secretRef:
       namespace: default
       name: github.com-secret
       key: token
   toRepoCredentials:
+    authMethod: basic
     source: Secret
     secretRef:
       namespace: default
