@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/cbroglie/mustache"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -193,7 +194,10 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 			"values", values,
 		)
 
-		loadIgnoreFileEventually(co)
+		if err := loadIgnoreFileEventually(co); err != nil {
+			e.log.Info("Unable to load '.krateoignore'", "msg", err.Error())
+		}
+
 		createRenderFunc(co, values)
 
 		toPath := helpers.StringValue(spec.ToRepo.Path)
@@ -285,11 +289,23 @@ func createRenderFunc(cfg *repo.CopyOpts, values interface{}) {
 	}
 }
 
-func loadIgnoreFileEventually(cfg *repo.CopyOpts) {
-	ignore, err := gi.CompileIgnoreFile(".krateoignore")
-	if err == nil {
-		cfg.Ignore = ignore
+func loadIgnoreFileEventually(cfg *repo.CopyOpts) error {
+	fp, err := cfg.FromRepo.FS().Open(".krateoignore")
+	if err != nil {
+		return err
 	}
+	defer fp.Close()
+
+	bs, err := ioutil.ReadAll(fp)
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(bs), "\n")
+
+	cfg.Ignore = gi.CompileIgnoreLines(lines...)
+
+	return nil
 }
 
 func getDeploymentId(mg resource.Managed) string {
