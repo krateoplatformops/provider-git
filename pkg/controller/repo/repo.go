@@ -153,13 +153,14 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	spec := cr.Spec.ForProvider.DeepCopy()
 
 	deploymentId := getDeploymentId(mg)
-	deployment, err := deployment.Get(e.cfg.DeploymentServiceUrl, deploymentId)
+
+	claim, err := deployment.Get(e.cfg.DeploymentServiceUrl, deploymentId)
 	if err != nil {
 		return managed.ExternalCreation{},
-			fmt.Errorf("fetching deployment (deploymentId:%s): %w", deploymentId, err)
+			fmt.Errorf("fetching deployment (deploymentId: %s): %w", deploymentId, err)
 	}
 
-	e.log.Debug("Claim and Package info fetched", "deploymentId", deploymentId)
+	e.log.Debug("Claim fetched", "deploymentId", deploymentId)
 
 	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
 	if err != nil {
@@ -212,13 +213,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	// write claim data
-	err = co.WriteBytes(deployment.Claim, "claim.yaml")
-	if err != nil {
-		return managed.ExternalCreation{}, err
-	}
-
-	// write package data
-	err = co.WriteBytes(deployment.Package, "package.yaml")
+	err = co.WriteBytes(claim, "claim.yaml")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}

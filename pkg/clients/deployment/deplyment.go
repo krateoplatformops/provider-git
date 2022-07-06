@@ -8,12 +8,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-type Deployment struct {
-	Claim   []byte
-	Package []byte
-}
-
-func Get(serviceUrl, deploymentId string) (*Deployment, error) {
+func Get(serviceUrl, deploymentId string) ([]byte, error) {
 	tmp := map[string]any{}
 
 	err := requests.
@@ -30,22 +25,5 @@ func Get(serviceUrl, deploymentId string) (*Deployment, error) {
 		return nil, fmt.Errorf("claim not found for deployment: %s", deploymentId)
 	}
 
-	pkg, ok := tmp["package"]
-	if !ok {
-		return nil, fmt.Errorf("package not found for deployment: %s", deploymentId)
-	}
-
-	ret := &Deployment{}
-
-	ret.Claim, err = yaml.Marshal(clm)
-	if err != nil {
-		return nil, err
-	}
-
-	ret.Package, err = yaml.Marshal(pkg)
-	if err != nil {
-		return nil, err
-	}
-
-	return ret, nil
+	return yaml.Marshal(clm)
 }
