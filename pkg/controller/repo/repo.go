@@ -117,16 +117,11 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{}, err
 	}
 
-	pkgOk, err := toRepo.Exists("package.yaml")
-	if err != nil {
-		return managed.ExternalObservation{}, err
-	}
+	if clmOk {
+		e.log.Debug("Claim found", "url", spec.ToRepo.Url)
 
-	if clmOk && pkgOk {
-		e.log.Debug("Claim and Package found", "url", spec.ToRepo.Url)
-
-		cr.SetConditions(xpv1.Available())
 		cr.Status.AtProvider.DeploymentId = helpers.StringPtr(getDeploymentId(mg))
+		cr.SetConditions(xpv1.Available())
 
 		return managed.ExternalObservation{
 			ResourceExists:   true,
