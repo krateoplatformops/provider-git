@@ -36,8 +36,10 @@ import (
 const (
 	labDeploymentId = "deploymentId"
 
-	errNotRepo                  = "managed resource is not a repo custom resource"
-	errMissingDeploymentIdLabel = "managed resource is missing 'deploymentId' label"
+	errNotRepo                         = "managed resource is not a repo custom resource"
+	errMissingDeploymentIdLabel        = "managed resource is missing 'deploymentId' label"
+	errUnableToLoadConfigMapWithValues = "unable to load configmap with template values"
+	errConfigMapValuesNotReadyYet      = "configmap values not ready yet"
 )
 
 // Setup adds a controller that reconciles Token managed resources.
@@ -105,6 +107,22 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	spec := cr.Spec.ForProvider.DeepCopy()
+
+	fromPath := helpers.StringValue(spec.FromRepo.Path)
+	if len(fromPath) > 0 {
+		js, err := helpers.GetConfigMapValue(ctx, e.kube, spec.ConfigMapKeyRef)
+		if err != nil {
+			e.log.Debug("Unable to load configmap",
+				"name", spec.ConfigMapKeyRef.Name,
+				"key", spec.ConfigMapKeyRef.Key,
+				"namespace", spec.ConfigMapKeyRef.Namespace)
+			return managed.ExternalObservation{}, errors.New(errUnableToLoadConfigMapWithValues)
+		}
+
+		if strings.TrimSpace(js) == "" {
+			return managed.ExternalObservation{}, errors.New(errConfigMapValuesNotReadyYet)
+		}
+	}
 
 	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
 	if err != nil {
@@ -183,10 +201,14 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	// If fromPath is not specified DON'T COPY!
 	fromPath := helpers.StringValue(spec.FromRepo.Path)
 	if len(fromPath) > 0 {
-		values := e.loadValuesFromConfigMap(ctx, spec.ConfigMapKeyRef)
+		values, err := e.loadValuesFromConfigMap(ctx, spec.ConfigMapKeyRef)
+		if err != nil {
+			e.log.Debug("Unable to load configmap with template data", "msg", err.Error())
+		}
 		e.log.Debug("Loaded values from config map",
-			"configMapName", spec.ConfigMapKeyRef.Name,
-			"configMapKey", spec.ConfigMapKeyRef.Key,
+			"name", spec.ConfigMapKeyRef.Name,
+			"key", spec.ConfigMapKeyRef.Key,
+			"namespace", spec.ConfigMapKeyRef.Namespace,
 			"values", values,
 		)
 
@@ -246,22 +268,22 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	return nil // noop
 }
 
-func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.ConfigMapKeySelector) map[string]interface{} {
+func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.ConfigMapKeySelector) (map[string]interface{}, error) {
 	var res map[string]interface{}
 
 	js, err := helpers.GetConfigMapValue(ctx, e.kube, ref)
 	if err != nil {
-		e.log.Info(err.Error())
-		return nil
+		e.log.Debug(err.Error(), "name", ref.Name, "key", ref.Key, "namespace", ref.Namespace)
+		return nil, err
 	}
 
 	err = json.Unmarshal([]byte(js), &res)
 	if err != nil {
 		e.log.Debug(err.Error(), "json", js)
-		return nil
+		return nil, err
 	}
 
-	return res
+	return res, nil
 }
 
 func createRenderFunc(cfg *repo.CopyOpts, values interface{}) {

@@ -26,13 +26,13 @@ type ConfigMapKeySelector struct {
 	Key string `json:"key"`
 }
 
-func GetConfigMapValue(ctx context.Context, k client.Client, ref *ConfigMapKeySelector) (string, error) {
+func GetConfigMapValue(ctx context.Context, kube client.Client, ref *ConfigMapKeySelector) (string, error) {
 	if ref == nil {
 		return "", errors.New("no configmap referenced")
 	}
 
 	cm := &corev1.ConfigMap{}
-	err := k.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, cm)
+	err := kube.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, cm)
 	if err != nil {
 		return "", errors.Wrapf(err, "cannot get %s configmap", ref.Name)
 	}
