@@ -11,6 +11,7 @@ import (
 
 	"github.com/cbroglie/mustache"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"k8s.io/client-go/tools/record"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +32,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
 	gi "github.com/sabhiram/go-gitignore"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -48,14 +51,17 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	log := o.Logger.WithValues("controller", name)
 
+	recorder := mgr.GetEventRecorderFor(name)
+
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(repov1alpha1.RepoGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			kube: mgr.GetClient(),
-			log:  log,
+			kube:     mgr.GetClient(),
+			log:      log,
+			recorder: recorder,
 		}),
 		managed.WithLogger(log),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		managed.WithRecorder(event.NewAPIRecorder(recorder)))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -65,8 +71,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 }
 
 type connector struct {
-	kube client.Client
-	log  logging.Logger
+	kube     client.Client
+	log      logging.Logger
+	recorder record.EventRecorder
 }
 
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
@@ -84,6 +91,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		kube: c.kube,
 		log:  c.log,
 		cfg:  cfg,
+		rec:  c.recorder,
 	}, nil
 }
 
@@ -93,6 +101,7 @@ type external struct {
 	kube client.Client
 	log  logging.Logger
 	cfg  *clients.Config
+	rec  record.EventRecorder
 }
 
 func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -174,18 +183,21 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	e.log.Debug("Claim fetched", "deploymentId", deploymentId)
+	e.rec.Eventf(cr, corev1.EventTypeNormal, "ClaimFetched", "Successfully fetched claim for deployment: %s", deploymentId)
 
 	toRepo, err := git.Clone(spec.ToRepo.Url, e.cfg.ToRepoCreds, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
+	e.rec.Eventf(cr, corev1.EventTypeNormal, "TargetRepoCloned", "Successfully cloned target repo: %s", spec.ToRepo.Url)
 
 	fromRepo, err := git.Clone(spec.FromRepo.Url, e.cfg.FromRepoCreds, e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Origin repo cloned", "url", spec.FromRepo.Url)
+	e.rec.Eventf(cr, corev1.EventTypeNormal, "OriginRepoCloned", "Successfully cloned origin repo: %s", spec.FromRepo.Url)
 
 	err = toRepo.Branch("main")
 	if err != nil {
@@ -204,7 +216,9 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		values, err := e.loadValuesFromConfigMap(ctx, spec.ConfigMapKeyRef)
 		if err != nil {
 			e.log.Debug("Unable to load configmap with template data", "msg", err.Error())
+			e.rec.Eventf(cr, corev1.EventTypeWarning, "CannotLoadConfigMap", "Unable to load configmap with template data: %s", err.Error())
 		}
+
 		e.log.Debug("Loaded values from config map",
 			"name", spec.ConfigMapKeyRef.Name,
 			"key", spec.ConfigMapKeyRef.Key,
@@ -214,6 +228,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 		if err := loadIgnoreFileEventually(co); err != nil {
 			e.log.Info("Unable to load '.krateoignore'", "msg", err.Error())
+			e.rec.Eventf(cr, corev1.EventTypeWarning, "CannotLoadIgnoreFile", "Unable to load '.krateoignore' file: %s", err.Error())
 		}
 
 		createRenderFunc(co, values)
@@ -241,18 +256,21 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		"toUrl", spec.ToRepo.Url,
 		"fromPath", helpers.StringValue(spec.FromRepo.Path),
 		"toPath", helpers.StringValue(spec.ToRepo.Path))
+	e.rec.Eventf(cr, corev1.EventTypeNormal, "RepoSyncSuccess", "Origin and target repo synchronized")
 
 	commitId, err := toRepo.Commit(".", ":rocket: first commit")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo committed branch main", "commitId", commitId)
+	e.rec.Eventf(cr, corev1.EventTypeNormal, "RepoCommitSuccess", "Target repo committed branch main")
 
 	err = toRepo.Push("origin", "main", e.cfg.Insecure)
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
 	e.log.Debug("Target repo pushed branch main", "deploymentId", deploymentId)
+	e.rec.Eventf(cr, corev1.EventTypeNormal, "RepoPushSuccess", "Target repo pushed branch main")
 
 	cr.Status.SetConditions(xpv1.Available())
 	cr.Status.AtProvider.DeploymentId = helpers.StringPtr(deploymentId)
