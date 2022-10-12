@@ -283,6 +283,13 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
+	cr, ok := mg.(*repov1alpha1.Repo)
+	if !ok {
+		return errors.New(errNotRepo)
+	}
+
+	cr.Status.SetConditions(xpv1.Creating())
+
 	return nil // noop
 }
 
