@@ -112,7 +112,10 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	if meta.WasDeleted(cr) {
-		return managed.ExternalObservation{}, nil
+		return managed.ExternalObservation{
+			ResourceExists:   true,
+			ResourceUpToDate: true,
+		}, nil
 	}
 
 	deploymentID := getDeploymentId(mg)
