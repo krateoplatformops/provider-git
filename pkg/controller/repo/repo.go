@@ -288,7 +288,7 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.New(errNotRepo)
 	}
 
-	cr.Status.SetConditions(xpv1.Creating())
+	cr.Status.SetConditions(xpv1.Deleting())
 
 	return nil // noop
 }
