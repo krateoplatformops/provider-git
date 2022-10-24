@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/carlmjohnson/requests"
 	"github.com/ghodss/yaml"
@@ -20,10 +19,5 @@ func Get(serviceUrl, deploymentId string) ([]byte, error) {
 		return nil, err
 	}
 
-	clm, ok := tmp["claim"]
-	if !ok {
-		return nil, fmt.Errorf("claim not found for deployment: %s", deploymentId)
-	}
-
-	return yaml.Marshal(clm)
+	return yaml.Marshal(tmp)
 }

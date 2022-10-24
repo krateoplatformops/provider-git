@@ -147,7 +147,7 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 	e.log.Debug("Target repo cloned", "url", spec.ToRepo.Url)
 
-	clmOk, err := toRepo.Exists("claim.yaml")
+	clmOk, err := toRepo.Exists("deployment.yaml")
 	if err != nil {
 		return managed.ExternalObservation{}, err
 	}
@@ -253,7 +253,7 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	// write claim data
-	err = co.WriteBytes(claim, "claim.yaml")
+	err = co.WriteBytes(claim, "deployment.yaml")
 	if err != nil {
 		return managed.ExternalCreation{}, err
 	}
@@ -309,6 +309,9 @@ func (e *external) loadValuesFromConfigMap(ctx context.Context, ref *helpers.Con
 		e.log.Debug(err.Error(), "name", ref.Name, "key", ref.Key, "namespace", ref.Namespace)
 		return nil, err
 	}
+
+	js = strings.TrimPrefix(js, "'")
+	js = strings.TrimSuffix(js, "'")
 
 	err = json.Unmarshal([]byte(js), &res)
 	if err != nil {
