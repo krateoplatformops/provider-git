@@ -16,7 +16,7 @@ jobs:
         run: |
           mv README.md ${{ github.event.repository.name }}.md
       - name: Set subfolder
-        run: echo "SUB_FOLDER=$(echo "${{ github.event.repository.name }}" | cut -d '-' -f1" >> $GITHUB_ENV
+        run: echo "SUB_FOLDER=$(echo "${{ github.event.repository.name }}" | cut -d '-' -f1)" >> $GITHUB_ENV
       - name: Print subfolder
         run: echo $SUB_FOLDER
       - uses: GuillaumeFalourd/copy-push-files@v1
